@@ -11,8 +11,8 @@ const dmSans = DM_Sans({
 });
 
 export const metadata: Metadata = {
-  title: 'Monitoria de Farmacologia Clínica',
-  description: 'Hub de estudos para farmacologia clínica com resumos, casos clínicos, questões e muito mais',
+  title: 'Monitoria de Química Orgânica',
+  description: 'Hub de estudos para química orgânica com resumos, flashcards, questões e muito mais',
   generator: 'v0.app',
 }
 

@@ -7,14 +7,13 @@ import {
   BookOpen,
   FileText,
   HelpCircle,
-  FlaskConical,
-  Pill,
   Menu,
   X,
   Sun,
   Moon,
-  GraduationCap,
+  Atom,
   LogOut,
+  Layers,
 } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { useState, useEffect } from "react"
@@ -24,9 +23,8 @@ import { supabase } from "@/lib/supabase"
 const menuItems = [
   { title: "Início", href: "/", icon: BookOpen },
   { title: "Resumos", href: "/resumos", icon: FileText },
-  { title: "Casos Clínicos", href: "/casos-clinicos", icon: FlaskConical },
+  { title: "Flashcards", href: "/flashcards", icon: Layers },
   { title: "Questões", href: "/questoes", icon: HelpCircle },
-  { title: "Fármacos", href: "/farmacos", icon: Pill },
 ]
 
 export function Sidebar() {
@@ -60,10 +58,10 @@ export function Sidebar() {
       {/* Mobile Header */}
       <header className="fixed top-0 left-0 right-0 z-50 flex items-center justify-between px-4 h-14 bg-card/80 backdrop-blur-xl border-b border-border lg:hidden">
         <Link href="/" className="flex items-center gap-2.5">
-          <div className="h-8 w-8 rounded-lg bg-gradient-to-br from-rose-500 to-red-600 flex items-center justify-center shadow-lg shadow-rose-500/20">
-            <GraduationCap className="h-4 w-4 text-white" />
+          <div className="chem-atom-spin chem-glow h-8 w-8 rounded-lg bg-gradient-to-br from-sky-500 to-cyan-500 flex items-center justify-center shadow-lg shadow-sky-500/20">
+            <Atom className="h-4 w-4 text-white" />
           </div>
-          <span className="font-semibold text-foreground">Farmacologia</span>
+          <span className="font-semibold text-foreground">Química Orgânica</span>
         </Link>
 
         <div className="flex items-center gap-1">
@@ -73,7 +71,11 @@ export function Sidebar() {
               size="icon"
               onClick={() => setTheme(theme === "dark" ? "light" : "dark")}
             >
-              {theme === "dark" ? <Sun className="h-4 w-4" /> : <Moon className="h-4 w-4" />}
+              {theme === "dark" ? (
+                <Sun className="h-4 w-4" />
+              ) : (
+                <Moon className="h-4 w-4" />
+              )}
             </Button>
           )}
 
@@ -85,17 +87,16 @@ export function Sidebar() {
 
       {/* Desktop Sidebar */}
       <aside className="hidden lg:flex fixed left-0 top-0 bottom-0 w-64 flex-col bg-card/50 backdrop-blur-xl border-r border-border">
-        
         {/* Logo */}
         <div className="p-6 border-b border-border">
           <Link href="/" className="flex items-center gap-3">
-            <div className="h-10 w-10 rounded-xl bg-gradient-to-br from-rose-500 to-red-600 flex items-center justify-center shadow-lg shadow-rose-500/25">
-              <GraduationCap className="h-5 w-5 text-white" />
+            <div className="chem-atom-spin chem-glow h-10 w-10 rounded-xl bg-gradient-to-br from-sky-500 to-cyan-500 flex items-center justify-center shadow-lg shadow-sky-500/25">
+              <Atom className="h-5 w-5 text-white" />
             </div>
 
             <div>
-              <h1 className="font-bold text-foreground">Farmacologia</h1>
-              <p className="text-xs text-muted-foreground">Monitoria Clínica</p>
+              <h1 className="font-bold text-foreground">Química Orgânica</h1>
+              <p className="text-xs text-muted-foreground">Monitoria Acadêmica</p>
             </div>
           </Link>
         </div>
@@ -118,7 +119,7 @@ export function Sidebar() {
                     className={cn(
                       "flex items-center gap-3 px-3 py-2.5 rounded-xl transition-all text-sm",
                       isActive
-                        ? "bg-rose-500/20 text-rose-400 font-medium shadow-[0_0_10px_rgba(244,63,94,0.25)]"
+                        ? "bg-sky-500/20 text-sky-400 font-medium shadow-[0_0_10px_rgba(56,189,248,0.25)]"
                         : "text-muted-foreground hover:text-foreground hover:bg-secondary"
                     )}
                   >
