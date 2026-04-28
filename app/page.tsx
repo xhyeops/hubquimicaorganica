@@ -5,38 +5,25 @@ import { useEffect, useState } from "react"
 import { Sidebar } from "@/components/sidebar"
 import {
   FileText,
-  FlaskConical,
   HelpCircle,
-  ArrowRight,
   Sparkles,
   Users,
   Layers,
+  ArrowRight,
+  Clock,
+  Play,
 } from "lucide-react"
 import { supabase } from "@/lib/supabase"
 
-const actions = [
-  {
-    title: "Estudar resumos",
-    description: "Aprenda funções orgânicas, propriedades e conceitos fundamentais.",
-    href: "/resumos",
-    icon: FileText,
-    gradient: "from-sky-500 to-cyan-500",
-  },
-  {
-    title: "Treinar exercícios",
-    description: "Resolva questões e fixe os conceitos de química orgânica.",
-    href: "/questoes",
-    icon: HelpCircle,
-    gradient: "from-blue-500 to-indigo-500",
-  },
-  {
-    title: "Revisar flashcards",
-    description: "Fixe grupos funcionais, reações e conceitos importantes.",
-    href: "/flashcards",
-    icon: Layers,
-    gradient: "from-cyan-500 to-teal-500",
-  },
-]
+type FeedItem = {
+  id: string
+  tipo: "Resumo" | "Flashcard" | "Questão"
+  titulo: string
+  categoria: string | null
+  criado_em: string
+  href: string
+  icon: any
+}
 
 export default function HomePage() {
   const [counts, setCounts] = useState({
@@ -45,23 +32,92 @@ export default function HomePage() {
     questoes: 0,
   })
 
+  const [feed, setFeed] = useState<FeedItem[]>([])
+
   useEffect(() => {
-    async function fetchCounts() {
-      const [resumos, flashcards, questoes] = await Promise.all([
+    async function fetchData() {
+      const [resumosCount, flashcardsCount, questoesCount] = await Promise.all([
         supabase.from("resumos").select("*", { count: "exact", head: true }),
         supabase.from("flashcards").select("*", { count: "exact", head: true }),
         supabase.from("questoes").select("*", { count: "exact", head: true }),
       ])
 
       setCounts({
-        resumos: resumos.count || 0,
-        flashcards: flashcards.count || 0,
-        questoes: questoes.count || 0,
+        resumos: resumosCount.count || 0,
+        flashcards: flashcardsCount.count || 0,
+        questoes: questoesCount.count || 0,
       })
+
+      const [resumos, flashcards, questoes] = await Promise.all([
+        supabase
+          .from("resumos")
+          .select("id, titulo, slug, categoria, criado_em")
+          .order("criado_em", { ascending: false })
+          .limit(5),
+
+        supabase
+          .from("flashcards")
+          .select("id, pergunta, categoria, criado_em")
+          .order("criado_em", { ascending: false })
+          .limit(5),
+
+        supabase
+          .from("questoes")
+          .select("id, enunciado, categoria, criado_em")
+          .order("criado_em", { ascending: false })
+          .limit(5),
+      ])
+
+      const feedItems: FeedItem[] = [
+        ...(resumos.data || []).map((item: any) => ({
+          id: item.id,
+          tipo: "Resumo" as const,
+          titulo: item.titulo,
+          categoria: item.categoria,
+          criado_em: item.criado_em,
+          href: item.slug ? `/resumos/${item.slug}` : "/resumos",
+          icon: FileText,
+        })),
+
+        ...(flashcards.data || []).map((item: any) => ({
+          id: item.id,
+          tipo: "Flashcard" as const,
+          titulo: item.pergunta,
+          categoria: item.categoria,
+          criado_em: item.criado_em,
+          href: "/flashcards",
+          icon: Layers,
+        })),
+
+        ...(questoes.data || []).map((item: any) => ({
+          id: item.id,
+          tipo: "Questão" as const,
+          titulo: item.enunciado,
+          categoria: item.categoria,
+          criado_em: item.criado_em,
+          href: "/questoes",
+          icon: HelpCircle,
+        })),
+      ]
+
+      feedItems.sort(
+        (a, b) =>
+          new Date(b.criado_em).getTime() - new Date(a.criado_em).getTime()
+      )
+
+      setFeed(feedItems.slice(0, 8))
     }
 
-    fetchCounts()
+    fetchData()
   }, [])
+
+  function formatarData(data: string) {
+    return new Date(data).toLocaleDateString("pt-BR", {
+      day: "2-digit",
+      month: "short",
+      year: "numeric",
+    })
+  }
 
   return (
     <div className="min-h-screen bg-background">
@@ -69,140 +125,173 @@ export default function HomePage() {
 
       <main className="lg:pl-64 pt-14 lg:pt-0">
         <div className="max-w-5xl mx-auto px-4 sm:px-6 py-8 lg:py-16">
+          <section className="mb-10 rounded-[2rem] border border-sky-500/10 bg-gradient-to-br from-sky-500/10 via-card to-cyan-500/5 p-6 sm:p-8 shadow-xl shadow-sky-500/5">
+            <div className="inline-flex items-center gap-2 px-3 py-1.5 mb-5 rounded-full bg-sky-500/10 text-sky-400 text-sm font-medium">
+              <Sparkles className="h-3.5 w-3.5" />
+              Hub de Estudos
+            </div>
 
-          {/* HERO */}
-          <section className="mb-12">
-            <div>
-              <div className="inline-flex items-center gap-2 px-3 py-1.5 mb-4 rounded-full bg-sky-500/10 text-sky-400 text-sm font-medium">
-                <Sparkles className="h-3.5 w-3.5" />
-                Hub de Estudos
-              </div>
+            <h1 className="text-3xl sm:text-4xl lg:text-5xl font-bold tracking-tight text-foreground mb-4">
+              Monitoria de{" "}
+              <span className="bg-gradient-to-r from-sky-400 to-cyan-400 bg-clip-text text-transparent">
+                Química Orgânica
+              </span>
+            </h1>
 
-              <h1 className="text-3xl sm:text-4xl lg:text-5xl font-bold tracking-tight text-foreground mb-4">
-                Monitoria de{" "}
-                <span className="bg-gradient-to-r from-sky-400 to-cyan-400 bg-clip-text text-transparent">
-                  Química Orgânica
-                </span>
-              </h1>
+            <p className="text-lg text-muted-foreground max-w-2xl">
+              Acompanhe as novidades da monitoria e acesse os materiais pelo
+              menu lateral.
+            </p>
 
-              <p className="text-lg text-muted-foreground max-w-2xl">
-                Materiais para estudar, revisar e dominar química orgânica de forma clara e prática.
-              </p>
+            <div className="flex flex-wrap gap-3 mt-6">
+              <Link
+                href="/flashcards"
+                className="inline-flex items-center gap-2 rounded-xl bg-sky-500 px-4 py-2.5 text-sm font-medium text-white transition hover:-translate-y-0.5 hover:bg-sky-600 hover:shadow-lg hover:shadow-sky-500/20"
+              >
+                <Play className="h-4 w-4" />
+                Começar pelos flashcards
+              </Link>
 
-              <p className="text-sm text-muted-foreground mt-4">
-                Focado em funções orgânicas, reações, mecanismos e exercícios comentados.
-              </p>
+              <Link
+                href="/resumos"
+                className="inline-flex items-center gap-2 rounded-xl border border-sky-500/20 bg-background/40 px-4 py-2.5 text-sm font-medium text-foreground transition hover:-translate-y-0.5 hover:border-sky-500/50 hover:text-sky-400"
+              >
+                Ver resumos
+                <ArrowRight className="h-4 w-4" />
+              </Link>
             </div>
           </section>
 
-          {/* AÇÕES */}
-          <section className="mb-8">
-            <h2 className="text-xl font-semibold text-foreground mb-4">
-              O que fazer agora?
-            </h2>
+          <section className="grid md:grid-cols-3 gap-4 mb-10">
+            {[
+              { label: "Resumos", value: counts.resumos, href: "/resumos", icon: FileText },
+              { label: "Flashcards", value: counts.flashcards, href: "/flashcards", icon: Layers },
+              { label: "Questões", value: counts.questoes, href: "/questoes", icon: HelpCircle },
+            ].map((item) => {
+              const Icon = item.icon
 
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-5">
-              {actions.map((action) => (
+              return (
                 <Link
-                  key={action.href}
-                  href={action.href}
-                  className="group rounded-2xl bg-card border border-border p-6 transition-all duration-300 hover:-translate-y-1 hover:scale-[1.02] hover:border-sky-500/40 hover:shadow-lg hover:shadow-sky-500/5"
+                  key={item.label}
+                  href={item.href}
+                  className="group rounded-2xl bg-card border border-border p-5 transition-all duration-300 hover:-translate-y-1 hover:border-sky-500/40 hover:shadow-lg hover:shadow-sky-500/10"
                 >
-                  <div
-                    className={`inline-flex items-center justify-center w-12 h-12 rounded-xl bg-gradient-to-br ${action.gradient} text-white mb-4 transition-transform duration-300 group-hover:scale-110`}
-                  >
-                    <action.icon className="h-6 w-6" />
-                  </div>
+                  <div className="flex items-center justify-between">
+                    <div>
+                      <div className="text-3xl font-bold text-sky-400">
+                        {item.value}
+                      </div>
+                      <div className="text-sm text-muted-foreground">
+                        {item.label}
+                      </div>
+                    </div>
 
-                  <div className="flex items-center justify-between mb-2">
-                    <h3 className="text-lg font-semibold text-foreground group-hover:text-sky-400 transition">
-                      {action.title}
-                    </h3>
-                    <ArrowRight className="h-5 w-5 text-muted-foreground group-hover:text-sky-400 group-hover:translate-x-1 transition-all" />
+                    <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-sky-500/10 text-sky-400 transition group-hover:scale-110 group-hover:bg-sky-500/20">
+                      <Icon className="h-5 w-5" />
+                    </div>
                   </div>
-
-                  <p className="text-sm text-muted-foreground">
-                    {action.description}
-                  </p>
                 </Link>
-              ))}
-            </div>
+              )
+            })}
           </section>
 
-          {/* GUIA */}
           <section className="mb-8">
-            <Link
-              href="/resumos"
-              className="group flex items-center justify-between rounded-2xl bg-gradient-to-r from-sky-500/10 to-transparent border border-sky-500/20 px-5 py-4 transition hover:border-sky-500/40"
-            >
-              <div className="flex items-center gap-3">
-                <div className="inline-flex items-center justify-center w-10 h-10 rounded-xl bg-gradient-to-br from-sky-500 to-cyan-500 text-white transition-transform duration-300 group-hover:scale-110">
-                  <FlaskConical className="h-5 w-5" />
-                </div>
-
-                <div>
-                  <h3 className="font-semibold text-foreground">
-                    Guia rápido de Química Orgânica
-                  </h3>
-                  <p className="text-sm text-muted-foreground">
-                    Funções orgânicas, propriedades, reações e mecanismos importantes.
-                  </p>
-                </div>
+            <div className="flex items-end justify-between mb-4">
+              <div>
+                <h2 className="text-xl font-semibold text-foreground">
+                  Novas adições
+                </h2>
+                <p className="text-sm text-muted-foreground">
+                  Últimos conteúdos adicionados ao hub
+                </p>
               </div>
 
-              <ArrowRight className="h-5 w-5 text-muted-foreground group-hover:text-sky-400 group-hover:translate-x-1 transition-all" />
-            </Link>
-          </section>
-
-          {/* EQUIPE + CONTADORES */}
-          <section className="grid md:grid-cols-2 gap-4">
-            <div className="rounded-2xl bg-card border border-border p-5 transition hover:border-sky-500/20">
-              <div className="flex items-center gap-2 mb-3 text-sky-400">
-                <Users className="h-4 w-4" />
-                <span className="text-sm font-medium">Equipe da monitoria</span>
-              </div>
-
-              <p className="text-sm text-muted-foreground">
-                Monitores:{" "}
-                <span className="text-sky-400 font-semibold">André Luiz</span>{" "}
-                e{" "}
-                <span className="text-sky-400 font-semibold">Ana Georgia</span>
-              </p>
-
-              <p className="text-sm text-muted-foreground mt-1">
-                Professor:{" "}
-                <span className="text-foreground font-medium">
-                  Felipe Ramon
-                </span>
-              </p>
+              <span className="hidden sm:inline-flex rounded-full bg-sky-500/10 px-3 py-1 text-xs font-medium text-sky-400">
+                Atualizações recentes
+              </span>
             </div>
 
-            <div className="rounded-2xl bg-card border border-border p-5 transition hover:border-sky-500/20">
-              <div className="grid grid-cols-3 gap-3 text-center">
-                <div>
-                  <div className="text-xl font-bold text-sky-400">
-                    {counts.resumos}
-                  </div>
-                  <div className="text-xs text-muted-foreground">Resumos</div>
-                </div>
-
-                <div>
-                  <div className="text-xl font-bold text-sky-400">
-                    {counts.flashcards}
-                  </div>
-                  <div className="text-xs text-muted-foreground">Flashcards</div>
-                </div>
-
-                <div>
-                  <div className="text-xl font-bold text-sky-400">
-                    {counts.questoes}
-                  </div>
-                  <div className="text-xs text-muted-foreground">Questões</div>
-                </div>
+            {feed.length === 0 ? (
+              <div className="rounded-2xl border border-border bg-card p-8 text-center">
+                <p className="text-muted-foreground">
+                  Nenhuma atualização cadastrada ainda.
+                </p>
               </div>
-            </div>
+            ) : (
+              <div className="space-y-4">
+                {feed.map((item, index) => {
+                  const Icon = item.icon
+
+                  return (
+                    <Link
+                      key={`${item.tipo}-${item.id}`}
+                      href={item.href}
+                      className="group relative flex items-center justify-between gap-4 rounded-2xl border border-border bg-card p-5 transition-all duration-300 hover:-translate-y-1 hover:scale-[1.01] hover:border-sky-500/40 hover:shadow-xl hover:shadow-sky-500/10"
+                    >
+                      <div className="absolute left-0 top-5 bottom-5 w-1 rounded-r-full bg-sky-500/0 transition group-hover:bg-sky-400" />
+
+                      <div className="flex items-start gap-4">
+                        <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-2xl bg-sky-500/10 text-sky-400 transition group-hover:scale-110 group-hover:bg-sky-500/20">
+                          <Icon className="h-5 w-5" />
+                        </div>
+
+                        <div>
+                          <div className="mb-2 flex flex-wrap items-center gap-2">
+                            {index === 0 && (
+                              <span className="rounded-full bg-cyan-500/10 px-2.5 py-1 text-xs font-medium text-cyan-400">
+                                Novo
+                              </span>
+                            )}
+
+                            <span className="rounded-full bg-sky-500/10 px-2.5 py-1 text-xs font-medium text-sky-400">
+                              {item.tipo}
+                            </span>
+
+                            {item.categoria && (
+                              <span className="text-xs text-muted-foreground">
+                                {item.categoria}
+                              </span>
+                            )}
+                          </div>
+
+                          <h3 className="font-semibold text-foreground line-clamp-2 group-hover:text-sky-400 transition">
+                            {item.titulo}
+                          </h3>
+
+                          <div className="mt-2 flex items-center gap-1 text-xs text-muted-foreground">
+                            <Clock className="h-3.5 w-3.5" />
+                            {formatarData(item.criado_em)}
+                          </div>
+                        </div>
+                      </div>
+
+                      <ArrowRight className="h-5 w-5 shrink-0 text-muted-foreground transition group-hover:translate-x-1 group-hover:text-sky-400" />
+                    </Link>
+                  )
+                })}
+              </div>
+            )}
           </section>
 
+          <section className="rounded-2xl bg-card border border-border p-5 transition hover:border-sky-500/20">
+            <div className="flex items-center gap-2 mb-3 text-sky-400">
+              <Users className="h-4 w-4" />
+              <span className="text-sm font-medium">Equipe da monitoria</span>
+            </div>
+
+            <p className="text-sm text-muted-foreground">
+              Monitores:{" "}
+              <span className="text-sky-400 font-semibold">André Luiz</span> e{" "}
+              <span className="text-sky-400 font-semibold">Ana Georgia</span>
+            </p>
+
+            <p className="text-sm text-muted-foreground mt-1">
+              Professor:{" "}
+              <span className="text-foreground font-medium">
+                Felipe Ramon
+              </span>
+            </p>
+          </section>
         </div>
       </main>
     </div>
