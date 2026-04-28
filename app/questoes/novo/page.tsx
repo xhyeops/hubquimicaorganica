@@ -31,32 +31,43 @@ function NovoTemaForm() {
       .toLowerCase()
       .normalize("NFD")
       .replace(/[\u0300-\u036f]/g, "")
-      .replace(/ç/g, "c")
       .replace(/[^a-z0-9\s-]/g, "")
       .trim()
       .replace(/\s+/g, "-")
   }
 
-  function handleChange(e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) {
-    setForm({ ...form, [e.target.name]: e.target.value })
+  function handleChange(
+    e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>
+  ) {
+    setForm({
+      ...form,
+      [e.target.name]: e.target.value,
+    })
   }
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault()
 
-    if (!form.titulo) {
+    const titulo = form.titulo.trim()
+    const descricao = form.descricao.trim()
+    const slug = gerarSlug(titulo)
+
+    if (!titulo) {
       alert("Preencha o título do tema.")
+      return
+    }
+
+    if (!slug) {
+      alert("O título precisa gerar um slug válido.")
       return
     }
 
     setSalvando(true)
 
-    const slug = gerarSlug(form.titulo)
-
     const { error } = await supabase.from("temas_questoes").insert([
       {
-        titulo: form.titulo,
-        descricao: form.descricao,
+        titulo,
+        descricao,
         slug,
       },
     ])
@@ -64,7 +75,7 @@ function NovoTemaForm() {
     setSalvando(false)
 
     if (error) {
-      alert("Erro ao criar tema.")
+      alert("Erro ao criar tema. Talvez já exista um tema com esse título.")
       console.error(error)
       return
     }
@@ -95,13 +106,16 @@ function NovoTemaForm() {
             </p>
           </div>
 
-          <form onSubmit={handleSubmit} className="space-y-4">
+          <form
+            onSubmit={handleSubmit}
+            className="rounded-2xl border border-border bg-card p-6 space-y-4"
+          >
             <input
               name="titulo"
               placeholder="Título do tema"
               value={form.titulo}
               onChange={handleChange}
-              className="w-full rounded-xl border border-border bg-card px-4 py-3 text-foreground outline-none focus:border-amber-500"
+              className="w-full rounded-xl border border-border bg-background px-4 py-3 text-foreground outline-none focus:border-amber-500"
             />
 
             <textarea
@@ -109,7 +123,7 @@ function NovoTemaForm() {
               placeholder="Descrição"
               value={form.descricao}
               onChange={handleChange}
-              className="w-full min-h-28 rounded-xl border border-border bg-card px-4 py-3 text-foreground outline-none focus:border-amber-500"
+              className="w-full min-h-28 rounded-xl border border-border bg-background px-4 py-3 text-foreground outline-none focus:border-amber-500"
             />
 
             <button

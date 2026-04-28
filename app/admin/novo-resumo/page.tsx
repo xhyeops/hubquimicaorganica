@@ -2,10 +2,12 @@
 
 import { useEffect, useState } from "react"
 import { useRouter } from "next/navigation"
+import Link from "next/link"
+import { Save, ArrowLeft } from "lucide-react"
+
+import { Sidebar } from "@/components/sidebar"
 import { supabase } from "@/lib/supabase"
 import { isAdminEmail } from "@/lib/admin"
-import { Save, ArrowLeft } from "lucide-react"
-import Link from "next/link"
 
 function gerarSlug(texto: string) {
   return texto
@@ -25,7 +27,10 @@ export default function NovoResumoPage() {
 
   const [titulo, setTitulo] = useState("")
   const [slug, setSlug] = useState("")
+  const [categoria, setCategoria] = useState("")
+  const [description, setDescription] = useState("")
   const [conteudo, setConteudo] = useState("")
+
   const [loading, setLoading] = useState(false)
   const [erro, setErro] = useState("")
 
@@ -40,8 +45,7 @@ export default function NovoResumoPage() {
       }
 
       if (!isAdminEmail(email)) {
-        setIsAdmin(false)
-        setChecking(false)
+        router.push("/resumos")
         return
       }
 
@@ -59,12 +63,15 @@ export default function NovoResumoPage() {
 
   async function salvarResumo(e: React.FormEvent) {
     e.preventDefault()
+
     setErro("")
     setLoading(true)
 
     const { error } = await supabase.from("resumos").insert({
       titulo,
       slug,
+      categoria: categoria || null,
+      description: description || null,
       conteudo,
     })
 
@@ -80,95 +87,144 @@ export default function NovoResumoPage() {
 
   if (checking) {
     return (
-      <main className="min-h-screen bg-slate-950 p-6 text-white">
-        Verificando acesso...
-      </main>
+      <div className="min-h-screen bg-background">
+        <Sidebar />
+        <main className="lg:pl-64 pt-14 lg:pt-0 flex items-center justify-center">
+          <p className="text-muted-foreground">Verificando acesso...</p>
+        </main>
+      </div>
     )
   }
 
   if (!isAdmin) {
     return (
-      <main className="min-h-screen bg-slate-950 p-6 text-white">
-        <p>Acesso negado.</p>
-      </main>
+      <div className="min-h-screen bg-background">
+        <Sidebar />
+        <main className="lg:pl-64 pt-14 lg:pt-0 flex items-center justify-center">
+          <p className="text-muted-foreground">Acesso negado.</p>
+        </main>
+      </div>
     )
   }
 
   return (
-    <main className="min-h-screen bg-slate-950 px-4 py-8 text-white">
-      <div className="mx-auto max-w-4xl">
-        <Link
-          href="/"
-          className="mb-6 inline-flex items-center gap-2 text-sm text-slate-400 hover:text-white"
-        >
-          <ArrowLeft size={16} />
-          Voltar
-        </Link>
+    <div className="min-h-screen bg-background">
+      <Sidebar />
 
-        <div className="rounded-2xl border border-slate-800 bg-slate-900 p-6 shadow-xl">
-          <h1 className="mb-2 text-2xl font-bold">Novo resumo</h1>
-          <p className="mb-6 text-sm text-slate-400">
-            Crie um material em markdown para a monitoria.
-          </p>
+      <main className="lg:pl-64 pt-14 lg:pt-0">
+        <div className="mx-auto max-w-4xl px-4 sm:px-6 py-6 sm:py-8 lg:py-12">
+          <Link
+            href="/resumos"
+            className="mb-6 inline-flex items-center gap-2 text-sm text-muted-foreground hover:text-sky-400 transition"
+          >
+            <ArrowLeft size={16} />
+            Voltar para resumos
+          </Link>
 
-          <form onSubmit={salvarResumo} className="space-y-5">
-            <div>
-              <label className="mb-2 block text-sm font-medium text-slate-300">
-                Título
-              </label>
-              <input
-                value={titulo}
-                onChange={(e) => handleTituloChange(e.target.value)}
-                required
-                placeholder="Ex: Introdução à farmacocinética"
-                className="w-full rounded-xl border border-slate-700 bg-slate-950 px-4 py-3 text-sm outline-none focus:border-emerald-500"
-              />
-            </div>
+          <div className="rounded-2xl border border-border bg-card p-6 shadow-sm">
+            <h1 className="mb-2 text-2xl sm:text-3xl font-bold text-foreground">
+              Novo resumo
+            </h1>
 
-            <div>
-              <label className="mb-2 block text-sm font-medium text-slate-300">
-                Slug
-              </label>
-              <input
-                value={slug}
-                onChange={(e) => setSlug(gerarSlug(e.target.value))}
-                required
-                placeholder="introducao-a-farmacocinetica"
-                className="w-full rounded-xl border border-slate-700 bg-slate-950 px-4 py-3 text-sm outline-none focus:border-emerald-500"
-              />
-            </div>
+            <p className="mb-6 text-sm text-muted-foreground">
+              Crie um material em markdown para a monitoria.
+            </p>
 
-            <div>
-              <label className="mb-2 block text-sm font-medium text-slate-300">
-                Conteúdo em Markdown
-              </label>
-              <textarea
-                value={conteudo}
-                onChange={(e) => setConteudo(e.target.value)}
-                required
-                rows={16}
-                placeholder={`# Introdução\n\nDigite seu conteúdo aqui...\n\n## Tópico\n\n- Item 1\n- Item 2`}
-                className="w-full resize-y rounded-xl border border-slate-700 bg-slate-950 px-4 py-3 font-mono text-sm outline-none focus:border-emerald-500"
-              />
-            </div>
+            <form onSubmit={salvarResumo} className="space-y-5">
+              {/* TÍTULO */}
+              <div>
+                <label className="mb-2 block text-sm font-medium text-foreground">
+                  Título
+                </label>
 
-            {erro && (
-              <p className="rounded-lg bg-red-500/10 px-3 py-2 text-sm text-red-400">
-                {erro}
-              </p>
-            )}
+                <input
+                  value={titulo}
+                  onChange={(e) => handleTituloChange(e.target.value)}
+                  required
+                  placeholder="Ex: Reações de substituição"
+                  className="w-full rounded-xl border border-border bg-background px-4 py-3 text-sm outline-none transition focus:border-sky-500"
+                />
+              </div>
 
-            <button
-              type="submit"
-              disabled={loading}
-              className="inline-flex items-center gap-2 rounded-xl bg-emerald-500 px-5 py-3 text-sm font-bold text-slate-950 transition hover:bg-emerald-400 disabled:opacity-60"
-            >
-              <Save size={18} />
-              {loading ? "Salvando..." : "Salvar resumo"}
-            </button>
-          </form>
+              {/* SLUG */}
+              <div>
+                <label className="mb-2 block text-sm font-medium text-foreground">
+                  Slug
+                </label>
+
+                <input
+                  value={slug}
+                  onChange={(e) => setSlug(gerarSlug(e.target.value))}
+                  required
+                  className="w-full rounded-xl border border-border bg-background px-4 py-3 text-sm outline-none transition focus:border-sky-500"
+                />
+              </div>
+
+              {/* CATEGORIA */}
+              <div>
+                <label className="mb-2 block text-sm font-medium text-foreground">
+                  Categoria
+                </label>
+
+                <input
+                  value={categoria}
+                  onChange={(e) => setCategoria(e.target.value)}
+                  placeholder="Ex: Funções Orgânicas"
+                  className="w-full rounded-xl border border-border bg-background px-4 py-3 text-sm outline-none transition focus:border-sky-500"
+                />
+              </div>
+
+              {/* DESCRIÇÃO */}
+              <div>
+                <label className="mb-2 block text-sm font-medium text-foreground">
+                  Descrição
+                </label>
+
+                <textarea
+                  value={description}
+                  onChange={(e) => setDescription(e.target.value)}
+                  rows={3}
+                  placeholder="Resumo curto que aparece na listagem"
+                  className="w-full rounded-xl border border-border bg-background px-4 py-3 text-sm outline-none transition focus:border-sky-500"
+                />
+              </div>
+
+              {/* CONTEÚDO */}
+              <div>
+                <label className="mb-2 block text-sm font-medium text-foreground">
+                  Conteúdo (Markdown)
+                </label>
+
+                <textarea
+                  value={conteudo}
+                  onChange={(e) => setConteudo(e.target.value)}
+                  required
+                  rows={18}
+                  placeholder={`# Título\n\nDigite seu conteúdo aqui...\n\n## Tópico\n\n- Item 1`}
+                  className="w-full resize-y rounded-xl border border-border bg-background px-4 py-3 font-mono text-sm outline-none transition focus:border-sky-500"
+                />
+              </div>
+
+              {/* ERRO */}
+              {erro && (
+                <p className="rounded-xl border border-red-500/20 bg-red-500/10 px-4 py-3 text-sm text-red-400">
+                  {erro}
+                </p>
+              )}
+
+              {/* BOTÃO */}
+              <button
+                type="submit"
+                disabled={loading}
+                className="inline-flex items-center gap-2 rounded-xl bg-sky-500 px-5 py-3 text-sm font-medium text-white transition hover:bg-sky-600 disabled:opacity-60"
+              >
+                <Save size={18} />
+                {loading ? "Salvando..." : "Salvar resumo"}
+              </button>
+            </form>
+          </div>
         </div>
-      </div>
-    </main>
+      </main>
+    </div>
   )
 }

@@ -21,6 +21,13 @@ type Questao = {
   ordem: number
 }
 
+type Tema = {
+  id: string
+  titulo: string
+  descricao: string | null
+  slug: string
+}
+
 const questaoVazia: Questao = {
   pergunta: "",
   alternativa_a: "",
@@ -32,7 +39,21 @@ const questaoVazia: Questao = {
   ordem: 1,
 }
 
-export default function EditarQuestoesPage({ params }: { params: Promise<{ slug: string }> }) {
+function gerarSlug(texto: string) {
+  return texto
+    .toLowerCase()
+    .normalize("NFD")
+    .replace(/[\u0300-\u036f]/g, "")
+    .replace(/[^a-z0-9\s-]/g, "")
+    .trim()
+    .replace(/\s+/g, "-")
+}
+
+export default function EditarQuestoesPage({
+  params,
+}: {
+  params: Promise<{ slug: string }>
+}) {
   return (
     <AdminOnly>
       <EditarQuestoesForm params={params} />
@@ -40,13 +61,17 @@ export default function EditarQuestoesPage({ params }: { params: Promise<{ slug:
   )
 }
 
-function EditarQuestoesForm({ params }: { params: Promise<{ slug: string }> }) {
+function EditarQuestoesForm({
+  params,
+}: {
+  params: Promise<{ slug: string }>
+}) {
   const { slug } = use(params)
   const router = useRouter()
 
   const [loading, setLoading] = useState(true)
   const [salvando, setSalvando] = useState(false)
-  const [tema, setTema] = useState<any>(null)
+  const [tema, setTema] = useState<Tema | null>(null)
 
   const [formTema, setFormTema] = useState({
     titulo: "",
@@ -56,14 +81,16 @@ function EditarQuestoesForm({ params }: { params: Promise<{ slug: string }> }) {
   const [questoes, setQuestoes] = useState<Questao[]>([])
 
   useEffect(() => {
-    async function fetchData() {
+    async function carregarDados() {
+      setLoading(true)
+
       const { data: temaData, error: temaError } = await supabase
         .from("temas_questoes")
         .select("*")
         .eq("slug", slug)
         .single()
 
-      if (temaError) {
+      if (temaError || !temaData) {
         console.error("Erro ao buscar tema:", temaError)
         setLoading(false)
         return
@@ -90,14 +117,23 @@ function EditarQuestoesForm({ params }: { params: Promise<{ slug: string }> }) {
       setLoading(false)
     }
 
-    fetchData()
+    carregarDados()
   }, [slug])
 
-  function handleTemaChange(e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) {
-    setFormTema({ ...formTema, [e.target.name]: e.target.value })
+  function handleTemaChange(
+    e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>
+  ) {
+    setFormTema({
+      ...formTema,
+      [e.target.name]: e.target.value,
+    })
   }
 
-  function handleQuestaoChange(index: number, campo: keyof Questao, valor: string) {
+  function handleQuestaoChange(
+    index: number,
+    campo: keyof Questao,
+    valor: string
+  ) {
     const novas = [...questoes]
 
     novas[index] = {
@@ -119,9 +155,10 @@ function EditarQuestoesForm({ params }: { params: Promise<{ slug: string }> }) {
   }
 
   async function removerQuestao(index: number) {
-    const questao = questoes[index]
+    const confirmar = confirm("Tem certeza que deseja remover esta questão?")
+    if (!confirmar) return
 
-    if (!confirm("Tem certeza que deseja remover esta questão?")) return
+    const questao = questoes[index]
 
     if (questao.id) {
       const { error } = await supabase
@@ -136,7 +173,14 @@ function EditarQuestoesForm({ params }: { params: Promise<{ slug: string }> }) {
       }
     }
 
-    setQuestoes(questoes.filter((_, i) => i !== index))
+    const novas = questoes
+      .filter((_, i) => i !== index)
+      .map((q, i) => ({
+        ...q,
+        ordem: i + 1,
+      }))
+
+    setQuestoes(novas)
   }
 
   async function handleSubmit(e: React.FormEvent) {
@@ -144,18 +188,32 @@ function EditarQuestoesForm({ params }: { params: Promise<{ slug: string }> }) {
 
     if (!tema) return
 
-    if (!formTema.titulo) {
+    const titulo = formTema.titulo.trim()
+    const descricao = formTema.descricao.trim()
+    const novoSlug = gerarSlug(titulo)
+
+    if (!titulo) {
       alert("Preencha o título do tema.")
+      return
+    }
+
+    if (!novoSlug) {
+      alert("O título precisa gerar um slug válido.")
+      return
+    }
+
+    if (questoes.length === 0) {
+      alert("Adicione pelo menos uma questão.")
       return
     }
 
     for (const q of questoes) {
       if (
-        !q.pergunta ||
-        !q.alternativa_a ||
-        !q.alternativa_b ||
-        !q.alternativa_c ||
-        !q.alternativa_d ||
+        !q.pergunta.trim() ||
+        !q.alternativa_a.trim() ||
+        !q.alternativa_b.trim() ||
+        !q.alternativa_c.trim() ||
+        !q.alternativa_d.trim() ||
         !q.correta
       ) {
         alert("Preencha todos os campos obrigatórios das questões.")
@@ -168,8 +226,9 @@ function EditarQuestoesForm({ params }: { params: Promise<{ slug: string }> }) {
     const { error: temaError } = await supabase
       .from("temas_questoes")
       .update({
-        titulo: formTema.titulo,
-        descricao: formTema.descricao,
+        titulo,
+        descricao,
+        slug: novoSlug,
       })
       .eq("id", tema.id)
 
@@ -180,20 +239,23 @@ function EditarQuestoesForm({ params }: { params: Promise<{ slug: string }> }) {
       return
     }
 
-    for (const q of questoes) {
+    for (const [index, q] of questoes.entries()) {
+      const dadosQuestao = {
+        tema_id: tema.id,
+        pergunta: q.pergunta.trim(),
+        alternativa_a: q.alternativa_a.trim(),
+        alternativa_b: q.alternativa_b.trim(),
+        alternativa_c: q.alternativa_c.trim(),
+        alternativa_d: q.alternativa_d.trim(),
+        correta: q.correta,
+        comentario: q.comentario.trim(),
+        ordem: index + 1,
+      }
+
       if (q.id) {
         const { error } = await supabase
           .from("questoes")
-          .update({
-            pergunta: q.pergunta,
-            alternativa_a: q.alternativa_a,
-            alternativa_b: q.alternativa_b,
-            alternativa_c: q.alternativa_c,
-            alternativa_d: q.alternativa_d,
-            correta: q.correta,
-            comentario: q.comentario,
-            ordem: q.ordem,
-          })
+          .update(dadosQuestao)
           .eq("id", q.id)
 
         if (error) {
@@ -203,19 +265,7 @@ function EditarQuestoesForm({ params }: { params: Promise<{ slug: string }> }) {
           return
         }
       } else {
-        const { error } = await supabase.from("questoes").insert([
-          {
-            tema_id: tema.id,
-            pergunta: q.pergunta,
-            alternativa_a: q.alternativa_a,
-            alternativa_b: q.alternativa_b,
-            alternativa_c: q.alternativa_c,
-            alternativa_d: q.alternativa_d,
-            correta: q.correta,
-            comentario: q.comentario,
-            ordem: q.ordem,
-          },
-        ])
+        const { error } = await supabase.from("questoes").insert([dadosQuestao])
 
         if (error) {
           setSalvando(false)
@@ -227,16 +277,31 @@ function EditarQuestoesForm({ params }: { params: Promise<{ slug: string }> }) {
     }
 
     setSalvando(false)
-    router.push(`/questoes/${slug}`)
+    router.push(`/questoes/${novoSlug}`)
   }
 
   if (loading) {
     return (
       <div className="min-h-screen bg-background">
         <Sidebar />
+
         <main className="lg:pl-64 pt-14 lg:pt-0">
           <div className="max-w-5xl mx-auto px-4 sm:px-6 py-8 lg:py-12">
             <p className="text-muted-foreground">Carregando edição...</p>
+          </div>
+        </main>
+      </div>
+    )
+  }
+
+  if (!tema) {
+    return (
+      <div className="min-h-screen bg-background">
+        <Sidebar />
+
+        <main className="lg:pl-64 pt-14 lg:pt-0">
+          <div className="max-w-5xl mx-auto px-4 sm:px-6 py-8 lg:py-12">
+            <p className="text-muted-foreground">Tema não encontrado.</p>
           </div>
         </main>
       </div>
@@ -287,7 +352,7 @@ function EditarQuestoesForm({ params }: { params: Promise<{ slug: string }> }) {
               />
             </div>
 
-            <div className="flex items-center justify-between">
+            <div className="flex items-center justify-between gap-4">
               <h2 className="text-lg font-semibold text-foreground">
                 Questões
               </h2>
@@ -323,65 +388,88 @@ function EditarQuestoesForm({ params }: { params: Promise<{ slug: string }> }) {
                     </button>
                   </div>
 
-                  <input
-                    type="number"
-                    min={1}
-                    placeholder="Ordem"
-                    value={q.ordem}
-                    onChange={(e) => handleQuestaoChange(index, "ordem", e.target.value)}
-                    className="w-full rounded-xl border border-border bg-background px-4 py-3 text-foreground outline-none focus:border-amber-500"
-                  />
-
                   <textarea
                     placeholder="Pergunta"
                     value={q.pergunta}
-                    onChange={(e) => handleQuestaoChange(index, "pergunta", e.target.value)}
+                    onChange={(e) =>
+                      handleQuestaoChange(index, "pergunta", e.target.value)
+                    }
                     className="w-full min-h-24 rounded-xl border border-border bg-background px-4 py-3 text-foreground outline-none focus:border-amber-500"
                   />
 
-                  <input
-                    placeholder="Alternativa A"
-                    value={q.alternativa_a}
-                    onChange={(e) => handleQuestaoChange(index, "alternativa_a", e.target.value)}
-                    className="w-full rounded-xl border border-border bg-background px-4 py-3 text-foreground outline-none focus:border-amber-500"
-                  />
+                  <div className="grid gap-4 md:grid-cols-2">
+                    <input
+                      placeholder="Alternativa A"
+                      value={q.alternativa_a}
+                      onChange={(e) =>
+                        handleQuestaoChange(
+                          index,
+                          "alternativa_a",
+                          e.target.value
+                        )
+                      }
+                      className="w-full rounded-xl border border-border bg-background px-4 py-3 text-foreground outline-none focus:border-amber-500"
+                    />
 
-                  <input
-                    placeholder="Alternativa B"
-                    value={q.alternativa_b}
-                    onChange={(e) => handleQuestaoChange(index, "alternativa_b", e.target.value)}
-                    className="w-full rounded-xl border border-border bg-background px-4 py-3 text-foreground outline-none focus:border-amber-500"
-                  />
+                    <input
+                      placeholder="Alternativa B"
+                      value={q.alternativa_b}
+                      onChange={(e) =>
+                        handleQuestaoChange(
+                          index,
+                          "alternativa_b",
+                          e.target.value
+                        )
+                      }
+                      className="w-full rounded-xl border border-border bg-background px-4 py-3 text-foreground outline-none focus:border-amber-500"
+                    />
 
-                  <input
-                    placeholder="Alternativa C"
-                    value={q.alternativa_c}
-                    onChange={(e) => handleQuestaoChange(index, "alternativa_c", e.target.value)}
-                    className="w-full rounded-xl border border-border bg-background px-4 py-3 text-foreground outline-none focus:border-amber-500"
-                  />
+                    <input
+                      placeholder="Alternativa C"
+                      value={q.alternativa_c}
+                      onChange={(e) =>
+                        handleQuestaoChange(
+                          index,
+                          "alternativa_c",
+                          e.target.value
+                        )
+                      }
+                      className="w-full rounded-xl border border-border bg-background px-4 py-3 text-foreground outline-none focus:border-amber-500"
+                    />
 
-                  <input
-                    placeholder="Alternativa D"
-                    value={q.alternativa_d}
-                    onChange={(e) => handleQuestaoChange(index, "alternativa_d", e.target.value)}
-                    className="w-full rounded-xl border border-border bg-background px-4 py-3 text-foreground outline-none focus:border-amber-500"
-                  />
+                    <input
+                      placeholder="Alternativa D"
+                      value={q.alternativa_d}
+                      onChange={(e) =>
+                        handleQuestaoChange(
+                          index,
+                          "alternativa_d",
+                          e.target.value
+                        )
+                      }
+                      className="w-full rounded-xl border border-border bg-background px-4 py-3 text-foreground outline-none focus:border-amber-500"
+                    />
+                  </div>
 
                   <select
                     value={q.correta}
-                    onChange={(e) => handleQuestaoChange(index, "correta", e.target.value)}
+                    onChange={(e) =>
+                      handleQuestaoChange(index, "correta", e.target.value)
+                    }
                     className="w-full rounded-xl border border-border bg-background px-4 py-3 text-foreground outline-none focus:border-amber-500"
                   >
-                    <option value="A">Correta: A</option>
-                    <option value="B">Correta: B</option>
-                    <option value="C">Correta: C</option>
-                    <option value="D">Correta: D</option>
+                    <option value="A">Resposta correta: A</option>
+                    <option value="B">Resposta correta: B</option>
+                    <option value="C">Resposta correta: C</option>
+                    <option value="D">Resposta correta: D</option>
                   </select>
 
                   <textarea
                     placeholder="Comentário da questão"
                     value={q.comentario}
-                    onChange={(e) => handleQuestaoChange(index, "comentario", e.target.value)}
+                    onChange={(e) =>
+                      handleQuestaoChange(index, "comentario", e.target.value)
+                    }
                     className="w-full min-h-28 rounded-xl border border-border bg-background px-4 py-3 text-foreground outline-none focus:border-amber-500"
                   />
                 </div>
