@@ -3,22 +3,25 @@
 import { useState } from "react"
 import { useRouter } from "next/navigation"
 import { supabase } from "@/lib/supabase"
-import { Lock, Mail } from "lucide-react"
+import { Eye, EyeOff, Lock, Mail } from "lucide-react"
 
 export default function LoginPage() {
   const router = useRouter()
+
   const [email, setEmail] = useState("")
   const [password, setPassword] = useState("")
+  const [mostrarSenha, setMostrarSenha] = useState(false)
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState("")
 
   async function handleLogin(e: React.FormEvent) {
     e.preventDefault()
+
     setLoading(true)
     setError("")
 
     const { error } = await supabase.auth.signInWithPassword({
-      email,
+      email: email.trim(),
       password,
     })
 
@@ -30,6 +33,7 @@ export default function LoginPage() {
     }
 
     router.push("/")
+    router.refresh()
   }
 
   return (
@@ -55,8 +59,9 @@ export default function LoginPage() {
               E-mail
             </label>
 
-            <div className="flex items-center rounded-xl border border-slate-700 bg-slate-950 px-3">
+            <div className="flex items-center rounded-xl border border-slate-700 bg-slate-950 px-3 focus-within:border-emerald-500">
               <Mail className="text-slate-500" size={18} />
+
               <input
                 type="email"
                 required
@@ -73,16 +78,25 @@ export default function LoginPage() {
               Senha
             </label>
 
-            <div className="flex items-center rounded-xl border border-slate-700 bg-slate-950 px-3">
+            <div className="flex items-center rounded-xl border border-slate-700 bg-slate-950 px-3 focus-within:border-emerald-500">
               <Lock className="text-slate-500" size={18} />
+
               <input
-                type="password"
+                type={mostrarSenha ? "text" : "password"}
                 required
                 placeholder="Digite sua senha"
                 value={password}
                 onChange={(e) => setPassword(e.target.value)}
                 className="w-full bg-transparent px-3 py-3 text-sm text-white outline-none placeholder:text-slate-600"
               />
+
+              <button
+                type="button"
+                onClick={() => setMostrarSenha(!mostrarSenha)}
+                className="text-slate-500 transition hover:text-slate-300"
+              >
+                {mostrarSenha ? <EyeOff size={18} /> : <Eye size={18} />}
+              </button>
             </div>
           </div>
 
@@ -95,7 +109,7 @@ export default function LoginPage() {
           <button
             type="submit"
             disabled={loading}
-            className="w-full rounded-xl bg-emerald-500 px-4 py-3 text-sm font-bold text-slate-950 transition hover:bg-emerald-400 disabled:cursor-not-allowed disabled:opacity-60"
+            className="w-full rounded-xl bg-emerald-500 px-4 py-3 text-sm font-bold text-slate-950 transition hover:scale-[1.01] hover:bg-emerald-400 disabled:cursor-not-allowed disabled:opacity-60 disabled:hover:scale-100"
           >
             {loading ? "Entrando..." : "Entrar"}
           </button>
