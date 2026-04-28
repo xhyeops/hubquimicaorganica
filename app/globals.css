@@ -3,64 +3,101 @@
 
 @custom-variant dark (&:is(.dark *));
 
+/* ========================= */
+/* 🌤️ LIGHT MODE (CORRIGIDO) */
+/* ========================= */
+
 :root {
-  --background: oklch(0.985 0.01 240);
-  --foreground: oklch(0.15 0.02 245);
-  --card: oklch(1 0 0);
-  --card-foreground: oklch(0.15 0.02 245);
-  --popover: oklch(1 0 0);
-  --popover-foreground: oklch(0.15 0.02 245);
-  --primary: oklch(0.65 0.18 240);
+  /* fundo geral mais suave (ANTES: branco demais) */
+  --background: oklch(0.96 0.01 250);
+
+  --foreground: oklch(0.18 0.02 245);
+
+  /* cards com leve destaque */
+  --card: oklch(0.99 0.005 250);
+  --card-foreground: oklch(0.18 0.02 245);
+
+  --popover: oklch(0.99 0.005 250);
+  --popover-foreground: oklch(0.18 0.02 245);
+
+  /* azul principal */
+  --primary: oklch(0.62 0.17 240);
   --primary-foreground: oklch(1 0 0);
-  --secondary: oklch(0.96 0.015 240);
-  --secondary-foreground: oklch(0.25 0.02 245);
-  --muted: oklch(0.95 0.012 240);
+
+  /* cinza azulado */
+  --secondary: oklch(0.93 0.01 250);
+  --secondary-foreground: oklch(0.3 0.02 245);
+
+  --muted: oklch(0.93 0.01 250);
   --muted-foreground: oklch(0.45 0.02 245);
-  --accent: oklch(0.7 0.16 195);
+
+  /* ciano destaque */
+  --accent: oklch(0.68 0.15 195);
   --accent-foreground: oklch(0.1 0.02 245);
+
   --destructive: oklch(0.55 0.2 25);
   --destructive-foreground: oklch(1 0 0);
-  --border: oklch(0.9 0.015 240);
-  --input: oklch(0.94 0.012 240);
-  --ring: oklch(0.65 0.18 240);
 
-  --chart-1: oklch(0.65 0.18 240);
-  --chart-2: oklch(0.7 0.16 195);
+  /* bordas mais visíveis */
+  --border: oklch(0.88 0.01 250);
+  --input: oklch(0.9 0.01 250);
+
+  --ring: oklch(0.62 0.17 240);
+
+  --chart-1: oklch(0.62 0.17 240);
+  --chart-2: oklch(0.68 0.15 195);
   --chart-3: oklch(0.6 0.14 270);
-  --chart-4: oklch(0.72 0.14 170);
-  --chart-5: oklch(0.75 0.12 220);
+  --chart-4: oklch(0.7 0.14 170);
+  --chart-5: oklch(0.72 0.12 220);
 
-  --radius: 0.625rem;
+  --radius: 0.7rem;
 
-  --sidebar: oklch(1 0 0);
-  --sidebar-foreground: oklch(0.15 0.02 245);
-  --sidebar-primary: oklch(0.65 0.18 240);
+  /* sidebar menos branca */
+  --sidebar: oklch(0.94 0.01 250);
+  --sidebar-foreground: oklch(0.2 0.02 245);
+
+  --sidebar-primary: oklch(0.62 0.17 240);
   --sidebar-primary-foreground: oklch(1 0 0);
-  --sidebar-accent: oklch(0.96 0.015 240);
-  --sidebar-accent-foreground: oklch(0.25 0.02 245);
-  --sidebar-border: oklch(0.9 0.015 240);
-  --sidebar-ring: oklch(0.65 0.18 240);
+
+  --sidebar-accent: oklch(0.9 0.01 250);
+  --sidebar-accent-foreground: oklch(0.3 0.02 245);
+
+  --sidebar-border: oklch(0.88 0.01 250);
+  --sidebar-ring: oklch(0.62 0.17 240);
 }
+
+/* ========================= */
+/* 🌙 DARK MODE (MANTIDO) */
+/* ========================= */
 
 .dark {
   --background: oklch(0.11 0.025 250);
   --foreground: oklch(0.96 0.01 240);
+
   --card: oklch(0.16 0.025 250);
   --card-foreground: oklch(0.96 0.01 240);
+
   --popover: oklch(0.16 0.025 250);
   --popover-foreground: oklch(0.96 0.01 240);
+
   --primary: oklch(0.72 0.18 235);
   --primary-foreground: oklch(0.08 0.02 250);
+
   --secondary: oklch(0.21 0.025 250);
   --secondary-foreground: oklch(0.92 0.01 240);
+
   --muted: oklch(0.21 0.025 250);
   --muted-foreground: oklch(0.66 0.02 240);
+
   --accent: oklch(0.72 0.16 195);
   --accent-foreground: oklch(0.08 0.02 250);
+
   --destructive: oklch(0.5 0.18 25);
   --destructive-foreground: oklch(1 0 0);
+
   --border: oklch(0.25 0.025 250);
   --input: oklch(0.22 0.025 250);
+
   --ring: oklch(0.72 0.18 235);
 
   --chart-1: oklch(0.72 0.18 235);
@@ -71,13 +108,20 @@
 
   --sidebar: oklch(0.13 0.025 250);
   --sidebar-foreground: oklch(0.96 0.01 240);
+
   --sidebar-primary: oklch(0.72 0.18 235);
   --sidebar-primary-foreground: oklch(0.08 0.02 250);
+
   --sidebar-accent: oklch(0.21 0.025 250);
   --sidebar-accent-foreground: oklch(0.92 0.01 240);
+
   --sidebar-border: oklch(0.25 0.025 250);
   --sidebar-ring: oklch(0.72 0.18 235);
 }
+
+/* ========================= */
+/* THEME */
+/* ========================= */
 
 @theme inline {
   --font-sans: var(--font-sans), system-ui, sans-serif;
@@ -124,6 +168,10 @@
   --color-sidebar-ring: var(--sidebar-ring);
 }
 
+/* ========================= */
+/* BASE + FUNDO SUAVE */
+/* ========================= */
+
 @layer base {
   * {
     @apply border-border outline-ring/50;
@@ -136,27 +184,27 @@
     overflow-x: hidden;
   }
 
+  /* 🔥 FUNDO MELHORADO (bem leve, sem poluir) */
   body::before {
     content: "";
     position: fixed;
     inset: 0;
     z-index: -1;
     pointer-events: none;
+
     background:
-      radial-gradient(circle at 20% 15%, rgba(56, 189, 248, 0.1), transparent 28%),
-      radial-gradient(circle at 80% 20%, rgba(34, 211, 238, 0.08), transparent 26%),
-      radial-gradient(circle at 50% 90%, rgba(99, 102, 241, 0.07), transparent 32%);
+      radial-gradient(circle at 20% 10%, rgba(56, 189, 248, 0.06), transparent 30%),
+      radial-gradient(circle at 80% 15%, rgba(34, 211, 238, 0.05), transparent 28%);
   }
 }
 
-@keyframes atomSpin {
-  from {
-    transform: rotate(0deg);
-  }
+/* ========================= */
+/* EXTRAS */
+/* ========================= */
 
-  to {
-    transform: rotate(360deg);
-  }
+@keyframes atomSpin {
+  from { transform: rotate(0deg); }
+  to { transform: rotate(360deg); }
 }
 
 .chem-atom-spin svg {
@@ -165,22 +213,12 @@
 
 .chem-glow {
   box-shadow:
-    0 0 22px rgba(56, 189, 248, 0.28),
-    0 0 45px rgba(34, 211, 238, 0.14);
+    0 0 18px rgba(56, 189, 248, 0.22),
+    0 0 38px rgba(34, 211, 238, 0.1);
 }
 
-.perspective {
-  perspective: 1000px;
-}
-
-.preserve-3d {
-  transform-style: preserve-3d;
-}
-
-.backface-hidden {
-  backface-visibility: hidden;
-}
-
-.rotate-y-180 {
-  transform: rotateY(180deg);
-}
+/* flashcards */
+.perspective { perspective: 1000px; }
+.preserve-3d { transform-style: preserve-3d; }
+.backface-hidden { backface-visibility: hidden; }
+.rotate-y-180 { transform: rotateY(180deg); }
