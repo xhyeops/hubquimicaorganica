@@ -59,11 +59,9 @@ export default function ResumoDetailPage() {
 
         <main className="lg:pl-64 pt-14 lg:pt-0">
           <div className="min-h-screen flex items-center justify-center px-4">
-            <div className="rounded-2xl border border-border bg-card px-6 py-5 text-center shadow-sm">
-              <p className="text-sm text-muted-foreground">
-                Carregando resumo...
-              </p>
-            </div>
+            <p className="text-sm text-muted-foreground">
+              Carregando resumo...
+            </p>
           </div>
         </main>
       </div>
@@ -76,7 +74,7 @@ export default function ResumoDetailPage() {
         <Sidebar />
 
         <main className="lg:pl-64 pt-14 lg:pt-0">
-          <div className="max-w-3xl mx-auto px-4 sm:px-6 py-8 lg:py-12">
+          <div className="max-w-4xl mx-auto px-4 sm:px-6 py-8">
             <Link
               href="/resumos"
               className="inline-flex items-center text-sm text-muted-foreground hover:text-sky-400 mb-8 transition"
@@ -99,36 +97,29 @@ export default function ResumoDetailPage() {
       <Sidebar />
 
       <main className="lg:pl-64 pt-14 lg:pt-0">
-        <div className="max-w-4xl mx-auto px-4 sm:px-6 py-6 lg:py-8">
+        <div className="max-w-4xl mx-auto px-4 sm:px-6 py-8">
           <Link
             href="/resumos"
-            className="inline-flex items-center text-sm text-muted-foreground hover:text-sky-400 mb-6 transition"
+            className="inline-flex items-center text-sm text-muted-foreground hover:text-sky-400 mb-7 transition"
           >
             <ArrowLeft className="h-4 w-4 mr-2" />
             Voltar para Resumos
           </Link>
 
-          <header className="mb-6 rounded-2xl border border-border bg-card/70 p-5 sm:p-6 shadow-sm">
-            <div className="flex flex-col gap-5 sm:flex-row sm:items-start sm:justify-between">
-              <div className="flex gap-4">
-                <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-2xl bg-gradient-to-br from-sky-500 to-cyan-500 text-white shadow-lg shadow-sky-500/20">
-                  <FileText className="h-6 w-6" />
+          <div className="mb-7">
+            <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 mb-4">
+              <div className="flex items-center gap-3">
+                <div className="w-11 h-11 flex shrink-0 items-center justify-center rounded-xl bg-gradient-to-br from-sky-500 to-cyan-500 text-white shadow-lg shadow-sky-500/20">
+                  <FileText className="h-5 w-5" />
                 </div>
 
                 <div>
-                  {resumo.categoria && (
-                    <span className="mb-3 inline-flex items-center gap-2 rounded-full bg-sky-500/10 px-3 py-1 text-xs font-semibold text-sky-600 dark:text-sky-400">
-                      <BookOpen className="h-3.5 w-3.5" />
-                      {resumo.categoria}
-                    </span>
-                  )}
-
-                  <h1 className="text-2xl sm:text-3xl font-bold leading-tight tracking-tight text-foreground">
+                  <h1 className="text-2xl sm:text-3xl font-bold leading-tight text-foreground">
                     {resumo.titulo}
                   </h1>
 
                   {resumo.description && (
-                    <p className="mt-3 max-w-2xl text-sm sm:text-base leading-relaxed text-muted-foreground">
+                    <p className="mt-2 text-sm sm:text-base text-muted-foreground leading-relaxed">
                       {resumo.description}
                     </p>
                   )}
@@ -138,78 +129,94 @@ export default function ResumoDetailPage() {
               <AdminOnly>
                 <Link
                   href={`/admin/editar-resumo/${resumo.slug}`}
-                  className="inline-flex shrink-0 items-center justify-center gap-2 rounded-xl bg-sky-500 px-4 py-2.5 text-sm font-medium text-white transition hover:bg-sky-600"
+                  className="inline-flex items-center justify-center gap-2 rounded-xl bg-sky-500 px-4 py-2 text-sm font-medium text-white transition hover:bg-sky-600"
                 >
                   <Pencil size={16} />
                   Editar
                 </Link>
               </AdminOnly>
             </div>
-          </header>
 
-          <article className="rounded-2xl border border-border bg-card/70 px-5 py-6 shadow-sm sm:px-7 sm:py-7">
-            <div className="mx-auto max-w-2xl">
+            {resumo.categoria && (
+              <span className="inline-flex items-center gap-2 px-3 py-1 rounded-full text-xs font-medium bg-sky-500/10 text-sky-600 dark:text-sky-400">
+                <BookOpen className="h-3 w-3" />
+                {resumo.categoria}
+              </span>
+            )}
+          </div>
+
+          <article className="rounded-2xl border border-border bg-card p-5 sm:p-7">
+            <div className="mx-auto max-w-3xl">
               <ReactMarkdown
                 components={{
                   h1: ({ children }) => (
-                    <h1 className="mb-5 mt-1 text-2xl font-bold leading-tight tracking-tight text-foreground sm:text-3xl">
+                    <h1 className="text-2xl sm:text-3xl font-bold mb-5 mt-1 text-foreground leading-tight">
                       {children}
                     </h1>
                   ),
+
                   h2: ({ children }) => (
-                    <h2 className="mb-3 mt-7 border-l-4 border-sky-500 pl-3 text-xl font-bold leading-tight text-foreground">
+                    <h2 className="text-xl sm:text-2xl font-bold mt-8 mb-3 text-foreground leading-tight border-l-4 border-sky-500 pl-3">
                       {children}
                     </h2>
                   ),
+
                   h3: ({ children }) => (
-                    <h3 className="mb-2 mt-6 text-lg font-semibold leading-tight text-foreground">
+                    <h3 className="text-lg font-semibold mt-6 mb-2 text-foreground">
                       {children}
                     </h3>
                   ),
-                  p: ({ children }) => (
-                    <p className="mb-4 text-base leading-7 text-foreground/90">
-                      {children}
-                    </p>
-                  ),
+
+                  p: ({ node, children }: any) => {
+                    const hasImage = node?.children?.some(
+                      (child: any) => child.tagName === "img"
+                    )
+
+                    if (hasImage) {
+                      return <div className="my-5">{children}</div>
+                    }
+
+                    return (
+                      <p className="mb-4 text-[15.5px] sm:text-base leading-7 text-foreground/90">
+                        {children}
+                      </p>
+                    )
+                  },
+
                   strong: ({ children }) => (
                     <strong className="font-bold text-sky-500 dark:text-sky-400">
                       {children}
                     </strong>
                   ),
+
                   ul: ({ children }) => (
-                    <ul className="mb-5 mt-2 list-disc space-y-1.5 pl-5 text-foreground/90">
+                    <ul className="list-disc pl-6 mb-5 space-y-2 text-[15.5px] leading-7 text-foreground/90">
                       {children}
                     </ul>
                   ),
+
                   ol: ({ children }) => (
-                    <ol className="mb-5 mt-2 list-decimal space-y-1.5 pl-5 text-foreground/90">
+                    <ol className="list-decimal pl-6 mb-5 space-y-2 text-[15.5px] leading-7 text-foreground/90">
                       {children}
                     </ol>
                   ),
-                  li: ({ children }) => (
-                    <li className="pl-1 leading-7">{children}</li>
-                  ),
+
+                  li: ({ children }) => <li>{children}</li>,
+
                   blockquote: ({ children }) => (
-                    <blockquote className="my-5 rounded-xl border-l-4 border-sky-500 bg-sky-500/10 px-4 py-3 text-foreground/90">
+                    <blockquote className="my-5 rounded-xl border-l-4 border-sky-500 bg-sky-500/10 px-4 py-3 text-[15.5px] leading-7 text-foreground/90">
                       {children}
                     </blockquote>
                   ),
-                  hr: () => <hr className="my-7 border-border" />,
-                  img: ({ src, alt }) => (
-                    <figure className="my-5">
-                      <img
-                        src={src || ""}
-                        alt={alt || ""}
-                        className="mx-auto max-h-[360px] w-auto max-w-full rounded-xl border border-border bg-white object-contain shadow-md shadow-black/10"
-                      />
 
-                      {alt && (
-                        <figcaption className="mt-2 text-center text-xs text-muted-foreground">
-                          {alt}
-                        </figcaption>
-                      )}
-                    </figure>
+                  img: ({ src, alt }) => (
+                    <img
+                      src={src || ""}
+                      alt={alt || ""}
+                      className="mx-auto my-5 max-h-[280px] w-auto max-w-full rounded-xl border border-border bg-white object-contain shadow-md shadow-black/10"
+                    />
                   ),
+
                   a: ({ href, children }) => (
                     <a
                       href={href}
@@ -220,6 +227,9 @@ export default function ResumoDetailPage() {
                       {children}
                     </a>
                   ),
+
+                  hr: () => <hr className="my-7 border-border" />,
+
                   code: ({ children }) => (
                     <code className="rounded-md bg-secondary px-1.5 py-0.5 text-sm text-sky-500 dark:text-sky-300">
                       {children}
