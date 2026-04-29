@@ -5,6 +5,7 @@ import { useEffect, useState } from "react"
 import { Sidebar } from "@/components/sidebar"
 import { AdminOnly } from "@/components/AdminOnly"
 import { supabase } from "@/lib/supabase"
+import { trackEvent } from "@/lib/analytics"
 import {
   ChevronLeft,
   ChevronRight,
@@ -27,6 +28,13 @@ export default function FlashcardsPage() {
   const [isFlipped, setIsFlipped] = useState(false)
 
   useEffect(() => {
+    trackEvent({
+      event_type: "flashcards_view",
+      page_path: "/flashcards",
+      section: "flashcards",
+      title: "Página de flashcards",
+    })
+
     async function carregarFlashcards() {
       const { data, error } = await supabase
         .from("flashcards")
@@ -48,6 +56,15 @@ export default function FlashcardsPage() {
 
   function proximoCard() {
     setIsFlipped(false)
+
+    trackEvent({
+      event_type: "flashcard_next",
+      page_path: "/flashcards",
+      section: "flashcards",
+      slug: currentCard?.id,
+      title: currentCard?.pergunta,
+    })
+
     setCurrentIndex((prev) =>
       prev === flashcards.length - 1 ? 0 : prev + 1
     )
@@ -55,9 +72,30 @@ export default function FlashcardsPage() {
 
   function cardAnterior() {
     setIsFlipped(false)
+
+    trackEvent({
+      event_type: "flashcard_prev",
+      page_path: "/flashcards",
+      section: "flashcards",
+      slug: currentCard?.id,
+      title: currentCard?.pergunta,
+    })
+
     setCurrentIndex((prev) =>
       prev === 0 ? flashcards.length - 1 : prev - 1
     )
+  }
+
+  function virarCard() {
+    setIsFlipped((prev) => !prev)
+
+    trackEvent({
+      event_type: "flashcard_flip",
+      page_path: "/flashcards",
+      section: "flashcards",
+      slug: currentCard?.id,
+      title: currentCard?.pergunta,
+    })
   }
 
   return (
@@ -143,7 +181,7 @@ export default function FlashcardsPage() {
               </div>
 
               <button
-                onClick={() => setIsFlipped((prev) => !prev)}
+                onClick={virarCard}
                 className="w-full max-w-xl cursor-pointer perspective"
               >
                 <div
@@ -187,7 +225,7 @@ export default function FlashcardsPage() {
                 </button>
 
                 <button
-                  onClick={() => setIsFlipped((prev) => !prev)}
+                  onClick={virarCard}
                   className="inline-flex items-center gap-2 rounded-xl px-4 py-2 text-sm font-medium text-muted-foreground transition hover:text-sky-400"
                 >
                   <RotateCcw className="h-4 w-4" />

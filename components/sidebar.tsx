@@ -14,11 +14,13 @@ import {
   Atom,
   LogOut,
   Layers,
+  BarChart3,
 } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { useState, useEffect } from "react"
 import { useTheme } from "next-themes"
 import { supabase } from "@/lib/supabase"
+import { isAdminEmail } from "@/lib/admin"
 
 const menuItems = [
   { title: "Início", href: "/", icon: BookOpen },
@@ -55,9 +57,16 @@ export function Sidebar() {
   }
 
   function NavLinks() {
+    const items = [
+      ...menuItems,
+      ...(user?.email && isAdminEmail(user.email)
+        ? [{ title: "Dashboard", href: "/dashboard", icon: BarChart3 }]
+        : []),
+    ]
+
     return (
       <ul className="flex flex-col gap-2">
-        {menuItems.map((item) => {
+        {items.map((item) => {
           const Icon = item.icon
           const isActive = pathname === item.href
 

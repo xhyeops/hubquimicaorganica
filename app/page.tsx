@@ -1,5 +1,6 @@
 "use client"
 
+import { trackEvent } from "@/lib/analytics"
 import Link from "next/link"
 import { useEffect, useState } from "react"
 import { Sidebar } from "@/components/sidebar"
@@ -35,6 +36,12 @@ export default function HomePage() {
   const [feed, setFeed] = useState<FeedItem[]>([])
 
   useEffect(() => {
+      trackEvent({
+    event_type: "page_view",
+    page_path: "/",
+    section: "home",
+    title: "Página inicial",
+  })
     async function fetchData() {
       const [resumosCount, flashcardsCount, questoesCount] = await Promise.all([
         supabase.from("resumos").select("*", { count: "exact", head: true }),

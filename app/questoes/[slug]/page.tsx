@@ -17,6 +17,7 @@ import { useEffect, useState } from "react"
 import { useParams } from "next/navigation"
 import { cn } from "@/lib/utils"
 import { supabase } from "@/lib/supabase"
+import { trackEvent } from "@/lib/analytics"
 
 type Tema = {
   id: string
@@ -93,6 +94,18 @@ export default function QuestaoDetailPage() {
     fetchQuiz()
   }, [slug])
 
+  useEffect(() => {
+    if (!tema) return
+
+    trackEvent({
+      event_type: "questoes_view",
+      page_path: `/questoes/${tema.slug}`,
+      section: "questoes",
+      slug: tema.slug,
+      title: tema.titulo,
+    })
+  }, [tema])
+
   if (loading) {
     return (
       <div className="min-h-screen bg-background">
@@ -159,7 +172,16 @@ export default function QuestaoDetailPage() {
 
   function handleSelect(index: number) {
     if (showResult) return
+
     setSelectedAnswer(index)
+
+    trackEvent({
+      event_type: "questao_select_answer",
+      page_path: `/questoes/${tema?.slug}`,
+      section: "questoes",
+      slug: tema?.slug,
+      title: tema?.titulo,
+    })
   }
 
   function handleConfirm() {
@@ -167,22 +189,56 @@ export default function QuestaoDetailPage() {
 
     setShowResult(true)
 
-    if (selectedAnswer === corretaIndex) {
+    const acertou = selectedAnswer === corretaIndex
+
+    if (acertou) {
       setScore((s) => s + 1)
     }
+
+    trackEvent({
+      event_type: acertou ? "questao_correct" : "questao_wrong",
+      page_path: `/questoes/${tema?.slug}`,
+      section: "questoes",
+      slug: tema?.slug,
+      title: tema?.titulo,
+    })
   }
 
   function handleNext() {
     if (currentQuestion < totalQuestions - 1) {
+      trackEvent({
+        event_type: "questao_next",
+        page_path: `/questoes/${tema?.slug}`,
+        section: "questoes",
+        slug: tema?.slug,
+        title: tema?.titulo,
+      })
+
       setCurrentQuestion((c) => c + 1)
       setSelectedAnswer(null)
       setShowResult(false)
     } else {
       setFinished(true)
+
+      trackEvent({
+        event_type: "quiz_finished",
+        page_path: `/questoes/${tema?.slug}`,
+        section: "questoes",
+        slug: tema?.slug,
+        title: tema?.titulo,
+      })
     }
   }
 
   function handleRestart() {
+    trackEvent({
+      event_type: "quiz_restart",
+      page_path: `/questoes/${tema?.slug}`,
+      section: "questoes",
+      slug: tema?.slug,
+      title: tema?.titulo,
+    })
+
     setCurrentQuestion(0)
     setSelectedAnswer(null)
     setShowResult(false)
@@ -396,7 +452,10 @@ export default function QuestaoDetailPage() {
                   Confirmar
                 </Button>
               ) : (
-                <Button onClick={handleNext} className="bg-sky-500 hover:bg-sky-600">
+                <Button
+                  onClick={handleNext}
+                  className="bg-sky-500 hover:bg-sky-600"
+                >
                   {currentQuestion < totalQuestions - 1 ? (
                     <>
                       Próxima

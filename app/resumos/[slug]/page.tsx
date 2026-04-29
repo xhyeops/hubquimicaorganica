@@ -1,5 +1,6 @@
 "use client"
 
+import { trackEvent } from "@/lib/analytics"
 import { useEffect, useState } from "react"
 import { useParams } from "next/navigation"
 import Link from "next/link"
@@ -51,6 +52,17 @@ export default function ResumoDetailPage() {
 
     carregarResumo()
   }, [slug])
+
+  useEffect(() => {
+  if (!resumo) return
+
+  trackEvent({
+    event_type: "resumo_view",
+    section: "resumos",
+    slug: resumo.slug,
+    title: resumo.titulo,
+  })
+}, [resumo])
 
   if (loading) {
     return (
@@ -246,3 +258,4 @@ export default function ResumoDetailPage() {
     </div>
   )
 }
+

@@ -12,6 +12,7 @@ import {
   Plus,
 } from "lucide-react"
 import { supabase } from "@/lib/supabase"
+import { trackEvent } from "@/lib/analytics"
 
 type TemaQuestao = {
   id: string
@@ -27,6 +28,13 @@ export default function QuestoesPage() {
   const [loading, setLoading] = useState(true)
 
   useEffect(() => {
+    trackEvent({
+      event_type: "page_view",
+      page_path: "/questoes",
+      section: "questoes",
+      title: "Página de questões",
+    })
+
     async function fetchQuizzes() {
       setLoading(true)
 

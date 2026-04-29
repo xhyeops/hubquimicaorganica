@@ -1,5 +1,6 @@
 "use client"
 
+import { trackEvent } from "@/lib/analytics"
 import { useEffect, useState } from "react"
 import Link from "next/link"
 import { Sidebar } from "@/components/sidebar"
@@ -21,6 +22,13 @@ export default function ResumosPage() {
   const [loading, setLoading] = useState(true)
 
   useEffect(() => {
+  trackEvent({
+    event_type: "page_view",
+    page_path: "/resumos",
+    section: "resumos",
+    title: "Página de resumos",
+  })
+    
     async function carregarResumos() {
       setLoading(true)
 
