@@ -99,20 +99,20 @@ export default function ResumoDetailPage() {
       <Sidebar />
 
       <main className="lg:pl-64 pt-14 lg:pt-0">
-        <div className="max-w-5xl mx-auto px-4 sm:px-6 py-8 lg:py-12">
+        <div className="max-w-4xl mx-auto px-4 sm:px-6 py-6 lg:py-8">
           <Link
             href="/resumos"
-            className="inline-flex items-center text-sm text-muted-foreground hover:text-sky-400 mb-8 transition"
+            className="inline-flex items-center text-sm text-muted-foreground hover:text-sky-400 mb-6 transition"
           >
             <ArrowLeft className="h-4 w-4 mr-2" />
             Voltar para Resumos
           </Link>
 
-          <header className="mb-8 rounded-3xl border border-border bg-card/70 p-6 sm:p-8 shadow-sm">
+          <header className="mb-6 rounded-2xl border border-border bg-card/70 p-5 sm:p-6 shadow-sm">
             <div className="flex flex-col gap-5 sm:flex-row sm:items-start sm:justify-between">
               <div className="flex gap-4">
-                <div className="flex h-14 w-14 shrink-0 items-center justify-center rounded-2xl bg-gradient-to-br from-sky-500 to-cyan-500 text-white shadow-lg shadow-sky-500/20">
-                  <FileText className="h-7 w-7" />
+                <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-2xl bg-gradient-to-br from-sky-500 to-cyan-500 text-white shadow-lg shadow-sky-500/20">
+                  <FileText className="h-6 w-6" />
                 </div>
 
                 <div>
@@ -123,12 +123,12 @@ export default function ResumoDetailPage() {
                     </span>
                   )}
 
-                  <h1 className="text-3xl sm:text-4xl font-bold leading-tight tracking-tight text-foreground">
+                  <h1 className="text-2xl sm:text-3xl font-bold leading-tight tracking-tight text-foreground">
                     {resumo.titulo}
                   </h1>
 
                   {resumo.description && (
-                    <p className="mt-3 max-w-3xl text-base leading-relaxed text-muted-foreground">
+                    <p className="mt-3 max-w-2xl text-sm sm:text-base leading-relaxed text-muted-foreground">
                       {resumo.description}
                     </p>
                   )}
@@ -138,7 +138,7 @@ export default function ResumoDetailPage() {
               <AdminOnly>
                 <Link
                   href={`/admin/editar-resumo/${resumo.slug}`}
-                  className="inline-flex shrink-0 items-center justify-center gap-2 rounded-xl bg-sky-500 px-4 py-2.5 text-sm font-medium text-white transition hover:-translate-y-0.5 hover:bg-sky-600 hover:shadow-lg hover:shadow-sky-500/20"
+                  className="inline-flex shrink-0 items-center justify-center gap-2 rounded-xl bg-sky-500 px-4 py-2.5 text-sm font-medium text-white transition hover:bg-sky-600"
                 >
                   <Pencil size={16} />
                   Editar
@@ -147,27 +147,27 @@ export default function ResumoDetailPage() {
             </div>
           </header>
 
-          <article className="rounded-3xl border border-border bg-card/70 px-5 py-6 shadow-sm sm:px-8 sm:py-10">
-            <div className="mx-auto max-w-3xl">
+          <article className="rounded-2xl border border-border bg-card/70 px-5 py-6 shadow-sm sm:px-7 sm:py-7">
+            <div className="mx-auto max-w-2xl">
               <ReactMarkdown
                 components={{
                   h1: ({ children }) => (
-                    <h1 className="mb-6 mt-2 text-3xl font-bold leading-tight tracking-tight text-foreground sm:text-4xl">
+                    <h1 className="mb-5 mt-1 text-2xl font-bold leading-tight tracking-tight text-foreground sm:text-3xl">
                       {children}
                     </h1>
                   ),
                   h2: ({ children }) => (
-                    <h2 className="mb-4 mt-10 border-l-4 border-sky-500 pl-4 text-2xl font-bold leading-tight text-foreground">
+                    <h2 className="mb-3 mt-7 border-l-4 border-sky-500 pl-3 text-xl font-bold leading-tight text-foreground">
                       {children}
                     </h2>
                   ),
                   h3: ({ children }) => (
-                    <h3 className="mb-3 mt-8 text-xl font-semibold leading-tight text-foreground">
+                    <h3 className="mb-2 mt-6 text-lg font-semibold leading-tight text-foreground">
                       {children}
                     </h3>
                   ),
                   p: ({ children }) => (
-                    <p className="mb-5 text-[1.05rem] leading-8 text-foreground/90">
+                    <p className="mb-4 text-base leading-7 text-foreground/90">
                       {children}
                     </p>
                   ),
@@ -177,34 +177,34 @@ export default function ResumoDetailPage() {
                     </strong>
                   ),
                   ul: ({ children }) => (
-                    <ul className="mb-6 mt-2 list-disc space-y-2 pl-6 text-foreground/90">
+                    <ul className="mb-5 mt-2 list-disc space-y-1.5 pl-5 text-foreground/90">
                       {children}
                     </ul>
                   ),
                   ol: ({ children }) => (
-                    <ol className="mb-6 mt-2 list-decimal space-y-2 pl-6 text-foreground/90">
+                    <ol className="mb-5 mt-2 list-decimal space-y-1.5 pl-5 text-foreground/90">
                       {children}
                     </ol>
                   ),
                   li: ({ children }) => (
-                    <li className="pl-1 leading-8">{children}</li>
+                    <li className="pl-1 leading-7">{children}</li>
                   ),
                   blockquote: ({ children }) => (
-                    <blockquote className="my-6 rounded-2xl border-l-4 border-sky-500 bg-sky-500/10 px-5 py-4 text-foreground/90">
+                    <blockquote className="my-5 rounded-xl border-l-4 border-sky-500 bg-sky-500/10 px-4 py-3 text-foreground/90">
                       {children}
                     </blockquote>
                   ),
-                  hr: () => <hr className="my-10 border-border" />,
+                  hr: () => <hr className="my-7 border-border" />,
                   img: ({ src, alt }) => (
-                    <figure className="my-8">
+                    <figure className="my-5">
                       <img
                         src={src || ""}
                         alt={alt || ""}
-                        className="mx-auto max-h-[520px] w-auto max-w-full rounded-2xl border border-border bg-white object-contain shadow-xl shadow-black/10"
+                        className="mx-auto max-h-[360px] w-auto max-w-full rounded-xl border border-border bg-white object-contain shadow-md shadow-black/10"
                       />
 
                       {alt && (
-                        <figcaption className="mt-3 text-center text-xs text-muted-foreground">
+                        <figcaption className="mt-2 text-center text-xs text-muted-foreground">
                           {alt}
                         </figcaption>
                       )}
