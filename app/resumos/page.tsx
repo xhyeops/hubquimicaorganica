@@ -68,6 +68,7 @@ export default function ResumosPage() {
     if (novoIndex < 0 || novoIndex >= resumos.length) return
 
     const lista = [...resumos]
+
     const atual = lista[index]
     const troca = lista[novoIndex]
 
@@ -82,15 +83,18 @@ export default function ResumosPage() {
     const atualizacoes = lista.map((resumo, i) =>
       supabase
         .from("resumos")
-        .update({ ordem: total - i })
+        .update({
+          ordem: total - i,
+        })
         .eq("id", resumo.id)
     )
 
     const resultados = await Promise.all(atualizacoes)
+
     const erro = resultados.find((resultado) => resultado.error)
 
     if (erro?.error) {
-      console.error("Erro ao reordenar resumos:", erro.error)
+      console.error("Erro ao reordenar:", erro.error)
       await carregarResumos()
     } else {
       setResumos(
@@ -129,11 +133,11 @@ export default function ResumosPage() {
               </div>
 
               <AdminOnly>
-                <div className="flex flex-col sm:flex-row gap-2">
+                <div className="flex flex-col sm:flex-row gap-3">
                   <button
                     type="button"
                     onClick={() => setModoReordenar(!modoReordenar)}
-                    className="inline-flex items-center justify-center gap-2 rounded-xl border border-sky-500/30 bg-sky-500/10 px-4 py-2.5 text-sm font-medium text-sky-500 transition hover:bg-sky-500/20"
+                    className="inline-flex h-12 items-center justify-center gap-2 rounded-2xl border border-sky-500/30 bg-sky-500/10 px-5 text-sm font-semibold text-sky-500 shadow-sm shadow-sky-500/10 transition-all duration-300 hover:-translate-y-0.5 hover:border-sky-400/60 hover:bg-sky-500/15 hover:shadow-lg hover:shadow-sky-500/15 dark:text-sky-400"
                   >
                     <ListOrdered size={18} />
                     {modoReordenar ? "Concluir" : "Reordenar"}
@@ -141,7 +145,7 @@ export default function ResumosPage() {
 
                   <Link
                     href="/admin/novo-resumo"
-                    className="inline-flex items-center justify-center gap-2 rounded-xl bg-sky-500 px-4 py-2.5 text-sm font-medium text-white transition hover:bg-sky-600"
+                    className="inline-flex h-12 items-center justify-center gap-2 rounded-2xl bg-gradient-to-r from-sky-500 to-cyan-400 px-5 text-sm font-semibold text-white shadow-lg shadow-sky-500/25 transition-all duration-300 hover:-translate-y-0.5 hover:shadow-xl hover:shadow-sky-500/30"
                   >
                     <Plus size={18} />
                     Novo resumo
@@ -152,8 +156,7 @@ export default function ResumosPage() {
 
             {modoReordenar && (
               <p className="mt-4 text-sm text-muted-foreground">
-                Use as setas para mudar a ordem. A numeração é contada de baixo
-                para cima.
+                Use as setas para reorganizar os resumos.
               </p>
             )}
 
@@ -171,9 +174,11 @@ export default function ResumosPage() {
           ) : resumos.length === 0 ? (
             <div className="rounded-2xl border border-border bg-card p-8 text-center">
               <BookOpen className="mx-auto mb-4 h-8 w-8 text-sky-400" />
+
               <p className="font-medium text-foreground">
                 Nenhum resumo encontrado
               </p>
+
               <p className="mt-1 text-sm text-muted-foreground">
                 Quando novos conteúdos forem adicionados, eles aparecerão aqui.
               </p>
@@ -222,16 +227,18 @@ export default function ResumosPage() {
                             type="button"
                             disabled={index === 0 || salvando}
                             onClick={() => moverResumo(index, "cima")}
-                            className="rounded-xl border border-border p-2 text-muted-foreground transition hover:border-sky-500/40 hover:text-sky-400 disabled:cursor-not-allowed disabled:opacity-30"
+                            className="flex h-10 w-10 items-center justify-center rounded-xl border border-sky-500/20 bg-sky-500/10 text-sky-500 transition-all duration-300 hover:-translate-y-0.5 hover:border-sky-400/60 hover:bg-sky-500/20 hover:text-sky-400 disabled:cursor-not-allowed disabled:opacity-30 disabled:hover:translate-y-0"
                           >
                             <ArrowUp size={18} />
                           </button>
 
                           <button
                             type="button"
-                            disabled={index === resumos.length - 1 || salvando}
+                            disabled={
+                              index === resumos.length - 1 || salvando
+                            }
                             onClick={() => moverResumo(index, "baixo")}
-                            className="rounded-xl border border-border p-2 text-muted-foreground transition hover:border-sky-500/40 hover:text-sky-400 disabled:cursor-not-allowed disabled:opacity-30"
+                            className="flex h-10 w-10 items-center justify-center rounded-xl border border-sky-500/20 bg-sky-500/10 text-sky-500 transition-all duration-300 hover:-translate-y-0.5 hover:border-sky-400/60 hover:bg-sky-500/20 hover:text-sky-400 disabled:cursor-not-allowed disabled:opacity-30 disabled:hover:translate-y-0"
                           >
                             <ArrowDown size={18} />
                           </button>
