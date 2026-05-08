@@ -1,9 +1,24 @@
 "use client"
 
-import { useEffect, useState } from "react"
+import { useEffect, useRef, useState } from "react"
 import { useRouter } from "next/navigation"
 import Link from "next/link"
-import { Save, ArrowLeft } from "lucide-react"
+import ReactMarkdown from "react-markdown"
+import {
+  Save,
+  ArrowLeft,
+  Bold,
+  Italic,
+  Heading2,
+  Heading3,
+  Image,
+  List,
+  ListOrdered,
+  Quote,
+  LinkIcon,
+  Minus,
+  Code,
+} from "lucide-react"
 
 import { Sidebar } from "@/components/sidebar"
 import { supabase } from "@/lib/supabase"
@@ -21,6 +36,7 @@ function gerarSlug(texto: string) {
 
 export default function NovoResumoPage() {
   const router = useRouter()
+  const textareaRef = useRef<HTMLTextAreaElement | null>(null)
 
   const [checking, setChecking] = useState(true)
   const [isAdmin, setIsAdmin] = useState(false)
@@ -61,6 +77,42 @@ export default function NovoResumoPage() {
     setSlug(gerarSlug(value))
   }
 
+  function inserirMarkdown(
+    antes: string,
+    depois = "",
+    placeholder = ""
+  ) {
+    const textarea = textareaRef.current
+    if (!textarea) return
+
+    const inicio = textarea.selectionStart
+    const fim = textarea.selectionEnd
+
+    const selecionado = conteudo.substring(inicio, fim)
+    const texto = selecionado || placeholder
+
+    const novoConteudo =
+      conteudo.substring(0, inicio) +
+      antes +
+      texto +
+      depois +
+      conteudo.substring(fim)
+
+    setConteudo(novoConteudo)
+
+    setTimeout(() => {
+      textarea.focus()
+
+      const novaPosicaoInicio = inicio + antes.length
+      const novaPosicaoFim = novaPosicaoInicio + texto.length
+
+      textarea.setSelectionRange(
+        novaPosicaoInicio,
+        novaPosicaoFim
+      )
+    }, 0)
+  }
+
   async function salvarResumo(e: React.FormEvent) {
     e.preventDefault()
 
@@ -89,8 +141,11 @@ export default function NovoResumoPage() {
     return (
       <div className="min-h-screen bg-background">
         <Sidebar />
+
         <main className="lg:pl-64 pt-14 lg:pt-0 flex items-center justify-center">
-          <p className="text-muted-foreground">Verificando acesso...</p>
+          <p className="text-muted-foreground">
+            Verificando acesso...
+          </p>
         </main>
       </div>
     )
@@ -100,8 +155,11 @@ export default function NovoResumoPage() {
     return (
       <div className="min-h-screen bg-background">
         <Sidebar />
+
         <main className="lg:pl-64 pt-14 lg:pt-0 flex items-center justify-center">
-          <p className="text-muted-foreground">Acesso negado.</p>
+          <p className="text-muted-foreground">
+            Acesso negado.
+          </p>
         </main>
       </div>
     )
@@ -112,7 +170,7 @@ export default function NovoResumoPage() {
       <Sidebar />
 
       <main className="lg:pl-64 pt-14 lg:pt-0">
-        <div className="mx-auto max-w-4xl px-4 sm:px-6 py-6 sm:py-8 lg:py-12">
+        <div className="mx-auto max-w-7xl px-4 sm:px-6 py-6 sm:py-8 lg:py-12">
           <Link
             href="/resumos"
             className="mb-6 inline-flex items-center gap-2 text-sm text-muted-foreground hover:text-sky-400 transition"
@@ -121,110 +179,359 @@ export default function NovoResumoPage() {
             Voltar para resumos
           </Link>
 
-          <div className="rounded-2xl border border-border bg-card p-6 shadow-sm">
-            <h1 className="mb-2 text-2xl sm:text-3xl font-bold text-foreground">
-              Novo resumo
-            </h1>
+          <div className="mb-6 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
+            <div>
+              <h1 className="text-2xl sm:text-3xl font-bold text-foreground">
+                Novo resumo
+              </h1>
 
-            <p className="mb-6 text-sm text-muted-foreground">
-              Crie um material em markdown para a monitoria.
-            </p>
+              <p className="text-sm text-muted-foreground">
+                Crie o conteúdo e visualize em tempo real.
+              </p>
+            </div>
 
-            <form onSubmit={salvarResumo} className="space-y-5">
-              {/* TÍTULO */}
-              <div>
-                <label className="mb-2 block text-sm font-medium text-foreground">
-                  Título
-                </label>
-
-                <input
-                  value={titulo}
-                  onChange={(e) => handleTituloChange(e.target.value)}
-                  required
-                  placeholder="Ex: Reações de substituição"
-                  className="w-full rounded-xl border border-border bg-background px-4 py-3 text-sm outline-none transition focus:border-sky-500"
-                />
-              </div>
-
-              {/* SLUG */}
-              <div>
-                <label className="mb-2 block text-sm font-medium text-foreground">
-                  Slug
-                </label>
-
-                <input
-                  value={slug}
-                  onChange={(e) => setSlug(gerarSlug(e.target.value))}
-                  required
-                  className="w-full rounded-xl border border-border bg-background px-4 py-3 text-sm outline-none transition focus:border-sky-500"
-                />
-              </div>
-
-              {/* CATEGORIA */}
-              <div>
-                <label className="mb-2 block text-sm font-medium text-foreground">
-                  Categoria
-                </label>
-
-                <input
-                  value={categoria}
-                  onChange={(e) => setCategoria(e.target.value)}
-                  placeholder="Ex: Funções Orgânicas"
-                  className="w-full rounded-xl border border-border bg-background px-4 py-3 text-sm outline-none transition focus:border-sky-500"
-                />
-              </div>
-
-              {/* DESCRIÇÃO */}
-              <div>
-                <label className="mb-2 block text-sm font-medium text-foreground">
-                  Descrição
-                </label>
-
-                <textarea
-                  value={description}
-                  onChange={(e) => setDescription(e.target.value)}
-                  rows={3}
-                  placeholder="Resumo curto que aparece na listagem"
-                  className="w-full rounded-xl border border-border bg-background px-4 py-3 text-sm outline-none transition focus:border-sky-500"
-                />
-              </div>
-
-              {/* CONTEÚDO */}
-              <div>
-                <label className="mb-2 block text-sm font-medium text-foreground">
-                  Conteúdo (Markdown)
-                </label>
-
-                <textarea
-                  value={conteudo}
-                  onChange={(e) => setConteudo(e.target.value)}
-                  required
-                  rows={18}
-                  placeholder={`# Título\n\nDigite seu conteúdo aqui...\n\n## Tópico\n\n- Item 1`}
-                  className="w-full resize-y rounded-xl border border-border bg-background px-4 py-3 font-mono text-sm outline-none transition focus:border-sky-500"
-                />
-              </div>
-
-              {/* ERRO */}
-              {erro && (
-                <p className="rounded-xl border border-red-500/20 bg-red-500/10 px-4 py-3 text-sm text-red-400">
-                  {erro}
-                </p>
-              )}
-
-              {/* BOTÃO */}
-              <button
-                type="submit"
-                disabled={loading}
-                className="inline-flex items-center gap-2 rounded-xl bg-sky-500 px-5 py-3 text-sm font-medium text-white transition hover:bg-sky-600 disabled:opacity-60"
-              >
-                <Save size={18} />
-                {loading ? "Salvando..." : "Salvar resumo"}
-              </button>
-            </form>
+            <button
+              form="form-resumo"
+              disabled={loading}
+              className="inline-flex items-center justify-center gap-2 rounded-2xl bg-gradient-to-r from-sky-500 to-cyan-400 px-5 py-3 text-sm font-semibold text-white shadow-lg shadow-sky-500/25 transition hover:-translate-y-0.5 hover:shadow-xl hover:shadow-sky-500/30 disabled:opacity-60"
+            >
+              <Save size={18} />
+              {loading ? "Salvando..." : "Salvar resumo"}
+            </button>
           </div>
+
+          {erro && (
+            <p className="mb-4 rounded-xl border border-red-500/20 bg-red-500/10 px-4 py-3 text-sm text-red-400">
+              {erro}
+            </p>
+          )}
+
+          <form
+            id="form-resumo"
+            onSubmit={salvarResumo}
+            className="grid gap-6 lg:grid-cols-2 lg:items-start"
+          >
+            <section className="rounded-2xl border border-border bg-card p-5">
+              <label className="mb-2 block text-sm font-medium text-foreground">
+                Título
+              </label>
+
+              <input
+                value={titulo}
+                onChange={(e) =>
+                  handleTituloChange(e.target.value)
+                }
+                required
+                placeholder="Ex: Reações de substituição"
+                className="mb-5 w-full rounded-xl border border-border bg-background px-4 py-3 text-sm outline-none transition focus:border-sky-500"
+              />
+
+              <label className="mb-2 block text-sm font-medium text-foreground">
+                Slug
+              </label>
+
+              <input
+                value={slug}
+                onChange={(e) =>
+                  setSlug(gerarSlug(e.target.value))
+                }
+                required
+                className="mb-5 w-full rounded-xl border border-border bg-background px-4 py-3 text-sm outline-none transition focus:border-sky-500"
+              />
+
+              <label className="mb-2 block text-sm font-medium text-foreground">
+                Categoria
+              </label>
+
+              <input
+                value={categoria}
+                onChange={(e) =>
+                  setCategoria(e.target.value)
+                }
+                placeholder="Ex: Funções Orgânicas"
+                className="mb-5 w-full rounded-xl border border-border bg-background px-4 py-3 text-sm outline-none transition focus:border-sky-500"
+              />
+
+              <label className="mb-2 block text-sm font-medium text-foreground">
+                Descrição
+              </label>
+
+              <textarea
+                value={description}
+                onChange={(e) =>
+                  setDescription(e.target.value)
+                }
+                rows={3}
+                placeholder="Resumo curto que aparece na listagem"
+                className="mb-5 w-full rounded-xl border border-border bg-background px-4 py-3 text-sm outline-none transition focus:border-sky-500"
+              />
+
+              <label className="mb-2 block text-sm font-medium text-foreground">
+                Conteúdo
+              </label>
+
+              <div className="mb-3 flex flex-wrap gap-2 rounded-2xl border border-border bg-background/70 p-2">
+                <ToolbarButton
+                  title="Negrito"
+                  onClick={() =>
+                    inserirMarkdown(
+                      "**",
+                      "**",
+                      "texto em negrito"
+                    )
+                  }
+                >
+                  <Bold size={16} />
+                </ToolbarButton>
+
+                <ToolbarButton
+                  title="Itálico"
+                  onClick={() =>
+                    inserirMarkdown(
+                      "*",
+                      "*",
+                      "texto em itálico"
+                    )
+                  }
+                >
+                  <Italic size={16} />
+                </ToolbarButton>
+
+                <ToolbarButton
+                  title="Título 2"
+                  onClick={() =>
+                    inserirMarkdown(
+                      "## ",
+                      "",
+                      "Título"
+                    )
+                  }
+                >
+                  <Heading2 size={16} />
+                </ToolbarButton>
+
+                <ToolbarButton
+                  title="Título 3"
+                  onClick={() =>
+                    inserirMarkdown(
+                      "### ",
+                      "",
+                      "Subtítulo"
+                    )
+                  }
+                >
+                  <Heading3 size={16} />
+                </ToolbarButton>
+
+                <ToolbarButton
+                  title="Link"
+                  onClick={() =>
+                    inserirMarkdown(
+                      "[",
+                      "](https://link.com)",
+                      "texto do link"
+                    )
+                  }
+                >
+                  <LinkIcon size={16} />
+                </ToolbarButton>
+
+                <ToolbarButton
+                  title="Imagem"
+                  onClick={() =>
+                    inserirMarkdown(
+                      "![",
+                      "](https://link-da-imagem.com/imagem.jpg)",
+                      "descrição da imagem"
+                    )
+                  }
+                >
+                  <Image size={16} />
+                </ToolbarButton>
+
+                <ToolbarButton
+                  title="Lista"
+                  onClick={() =>
+                    inserirMarkdown(
+                      "- ",
+                      "",
+                      "item da lista"
+                    )
+                  }
+                >
+                  <List size={16} />
+                </ToolbarButton>
+
+                <ToolbarButton
+                  title="Lista numerada"
+                  onClick={() =>
+                    inserirMarkdown(
+                      "1. ",
+                      "",
+                      "item da lista"
+                    )
+                  }
+                >
+                  <ListOrdered size={16} />
+                </ToolbarButton>
+
+                <ToolbarButton
+                  title="Citação"
+                  onClick={() =>
+                    inserirMarkdown(
+                      "> ",
+                      "",
+                      "citação"
+                    )
+                  }
+                >
+                  <Quote size={16} />
+                </ToolbarButton>
+
+                <ToolbarButton
+                  title="Código"
+                  onClick={() =>
+                    inserirMarkdown(
+                      "`",
+                      "`",
+                      "código"
+                    )
+                  }
+                >
+                  <Code size={16} />
+                </ToolbarButton>
+
+                <ToolbarButton
+                  title="Separador"
+                  onClick={() =>
+                    inserirMarkdown("\n\n---\n\n")
+                  }
+                >
+                  <Minus size={16} />
+                </ToolbarButton>
+              </div>
+
+              <textarea
+                ref={textareaRef}
+                value={conteudo}
+                onChange={(e) =>
+                  setConteudo(e.target.value)
+                }
+                required
+                className="min-h-[760px] w-full resize-y rounded-xl border border-border bg-background px-4 py-3 font-mono text-sm leading-relaxed outline-none transition focus:border-sky-500"
+              />
+            </section>
+
+            <section className="rounded-2xl border border-border bg-card p-5 lg:sticky lg:top-6">
+              <p className="mb-4 text-sm font-medium text-foreground">
+                Prévia
+              </p>
+
+              <div className="min-h-[760px] max-h-[900px] overflow-y-auto rounded-xl border border-border bg-background p-5 sm:p-6">
+                <div className="mb-5">
+                  <span className="inline-flex rounded-full bg-sky-500/10 px-3 py-1 text-xs font-medium text-sky-500 dark:text-sky-400">
+                    {categoria || "Geral"}
+                  </span>
+
+                  <h1 className="mt-3 text-2xl font-bold text-foreground">
+                    {titulo || "Título do resumo"}
+                  </h1>
+
+                  {description && (
+                    <p className="mt-2 text-sm text-muted-foreground">
+                      {description}
+                    </p>
+                  )}
+                </div>
+
+                <ReactMarkdown
+                  components={{
+                    h1: ({ children }) => (
+                      <h1 className="text-3xl font-bold mb-4 text-foreground">
+                        {children}
+                      </h1>
+                    ),
+                    h2: ({ children }) => (
+                      <h2 className="text-2xl font-semibold mt-6 mb-3 text-foreground">
+                        {children}
+                      </h2>
+                    ),
+                    h3: ({ children }) => (
+                      <h3 className="text-xl font-semibold mt-5 mb-2 text-foreground">
+                        {children}
+                      </h3>
+                    ),
+                    p: ({ children }) => (
+                      <p className="mb-3 leading-relaxed text-foreground">
+                        {children}
+                      </p>
+                    ),
+                    ul: ({ children }) => (
+                      <ul className="list-disc pl-6 mb-4 space-y-1 text-foreground">
+                        {children}
+                      </ul>
+                    ),
+                    ol: ({ children }) => (
+                      <ol className="list-decimal pl-6 mb-4 space-y-1 text-foreground">
+                        {children}
+                      </ol>
+                    ),
+                    strong: ({ children }) => (
+                      <strong className="font-bold text-sky-500 dark:text-sky-400">
+                        {children}
+                      </strong>
+                    ),
+                    blockquote: ({ children }) => (
+                      <blockquote className="my-4 border-l-4 border-sky-500/60 pl-4 italic text-muted-foreground">
+                        {children}
+                      </blockquote>
+                    ),
+                    code: ({ children }) => (
+                      <code className="rounded-md bg-sky-500/10 px-1.5 py-0.5 text-sm text-sky-500 dark:text-sky-400">
+                        {children}
+                      </code>
+                    ),
+                    hr: () => (
+                      <hr className="my-6 border-border" />
+                    ),
+                    img: ({ src, alt }) => (
+                      <img
+                        src={src || ""}
+                        alt={alt || ""}
+                        className="my-6 max-w-full rounded-xl border border-border shadow-lg"
+                      />
+                    ),
+                  }}
+                >
+                  {conteudo ||
+                    "Digite o conteúdo do resumo para ver a prévia."}
+                </ReactMarkdown>
+              </div>
+            </section>
+          </form>
         </div>
       </main>
     </div>
+  )
+}
+
+function ToolbarButton({
+  children,
+  title,
+  onClick,
+}: {
+  children: React.ReactNode
+  title: string
+  onClick: () => void
+}) {
+  return (
+    <button
+      type="button"
+      title={title}
+      onClick={onClick}
+      className="inline-flex h-9 w-9 items-center justify-center rounded-xl text-muted-foreground transition hover:bg-sky-500/10 hover:text-sky-500"
+    >
+      {children}
+    </button>
   )
 }
