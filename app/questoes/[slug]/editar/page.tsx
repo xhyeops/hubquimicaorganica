@@ -3,7 +3,7 @@
 import { use, useEffect, useState } from "react"
 import { useRouter } from "next/navigation"
 import Link from "next/link"
-import { ArrowLeft, Plus, Save, Trash2 } from "lucide-react"
+import { ArrowLeft, Plus, Save, Trash2, ImageIcon } from "lucide-react"
 
 import { Sidebar } from "@/components/sidebar"
 import { AdminOnly } from "@/components/AdminOnly"
@@ -11,12 +11,16 @@ import { supabase } from "@/lib/supabase"
 
 type Questao = {
   id?: string
+  tipo: "fechada" | "aberta"
   pergunta: string
+  imagem_url: string
   alternativa_a: string
   alternativa_b: string
   alternativa_c: string
   alternativa_d: string
+  alternativa_e: string
   correta: string
+  resposta_aberta: string
   comentario: string
   ordem: number
 }
@@ -29,12 +33,16 @@ type Tema = {
 }
 
 const questaoVazia: Questao = {
+  tipo: "fechada",
   pergunta: "",
+  imagem_url: "",
   alternativa_a: "",
   alternativa_b: "",
   alternativa_c: "",
   alternativa_d: "",
+  alternativa_e: "",
   correta: "A",
+  resposta_aberta: "",
   comentario: "",
   ordem: 1,
 }
@@ -113,7 +121,25 @@ function EditarQuestoesForm({
         titulo: temaData.titulo || "",
         descricao: temaData.descricao || "",
       })
-      setQuestoes(questoesData || [])
+
+      setQuestoes(
+        (questoesData || []).map((q: any, index: number) => ({
+          id: q.id,
+          tipo: q.tipo || "fechada",
+          pergunta: q.pergunta || q.enunciado || "",
+          imagem_url: q.imagem_url || "",
+          alternativa_a: q.alternativa_a || "",
+          alternativa_b: q.alternativa_b || "",
+          alternativa_c: q.alternativa_c || "",
+          alternativa_d: q.alternativa_d || "",
+          alternativa_e: q.alternativa_e || "",
+          correta: q.correta || q.resposta_correta || "A",
+          resposta_aberta: q.resposta_aberta || "",
+          comentario: q.comentario || q.explicacao || "",
+          ordem: q.ordem || index + 1,
+        }))
+      )
+
       setLoading(false)
     }
 
@@ -208,15 +234,26 @@ function EditarQuestoesForm({
     }
 
     for (const q of questoes) {
-      if (
-        !q.pergunta.trim() ||
-        !q.alternativa_a.trim() ||
-        !q.alternativa_b.trim() ||
-        !q.alternativa_c.trim() ||
-        !q.alternativa_d.trim() ||
-        !q.correta
-      ) {
-        alert("Preencha todos os campos obrigatórios das questões.")
+      if (!q.pergunta.trim()) {
+        alert("Preencha o enunciado de todas as questões.")
+        return
+      }
+
+      if (q.tipo === "fechada") {
+        if (
+          !q.alternativa_a.trim() ||
+          !q.alternativa_b.trim() ||
+          !q.alternativa_c.trim() ||
+          !q.alternativa_d.trim() ||
+          !q.correta
+        ) {
+          alert("Preencha as alternativas e a resposta correta das questões fechadas.")
+          return
+        }
+      }
+
+      if (q.tipo === "aberta" && !q.resposta_aberta.trim()) {
+        alert("Preencha a resposta esperada das questões abertas.")
         return
       }
     }
@@ -242,13 +279,31 @@ function EditarQuestoesForm({
     for (const [index, q] of questoes.entries()) {
       const dadosQuestao = {
         tema_id: tema.id,
+
+        tipo: q.tipo,
         pergunta: q.pergunta.trim(),
-        alternativa_a: q.alternativa_a.trim(),
-        alternativa_b: q.alternativa_b.trim(),
-        alternativa_c: q.alternativa_c.trim(),
-        alternativa_d: q.alternativa_d.trim(),
-        correta: q.correta,
-        comentario: q.comentario.trim(),
+        enunciado: q.pergunta.trim(),
+
+        imagem_url: q.imagem_url.trim() || null,
+
+        alternativa_a: q.tipo === "fechada" ? q.alternativa_a.trim() : null,
+        alternativa_b: q.tipo === "fechada" ? q.alternativa_b.trim() : null,
+        alternativa_c: q.tipo === "fechada" ? q.alternativa_c.trim() : null,
+        alternativa_d: q.tipo === "fechada" ? q.alternativa_d.trim() : null,
+        alternativa_e:
+          q.tipo === "fechada" && q.alternativa_e.trim()
+            ? q.alternativa_e.trim()
+            : null,
+
+        correta: q.tipo === "fechada" ? q.correta : null,
+        resposta_correta: q.tipo === "fechada" ? q.correta : null,
+
+        resposta_aberta:
+          q.tipo === "aberta" ? q.resposta_aberta.trim() : null,
+
+        comentario: q.comentario.trim() || null,
+        explicacao: q.comentario.trim() || null,
+
         ordem: index + 1,
       }
 
@@ -327,7 +382,7 @@ function EditarQuestoesForm({
               Editar Questões
             </h1>
             <p className="text-muted-foreground">
-              Edite o tema, adicione, remova ou altere questões.
+              Edite questões fechadas, abertas, imagens e comentários.
             </p>
           </div>
 
@@ -340,7 +395,7 @@ function EditarQuestoesForm({
                 placeholder="Título do tema"
                 value={formTema.titulo}
                 onChange={handleTemaChange}
-                className="w-full rounded-xl border border-border bg-background px-4 py-3 text-foreground outline-none focus:border-amber-500"
+                className="w-full rounded-xl border border-border bg-background px-4 py-3 text-foreground outline-none focus:border-sky-500"
               />
 
               <textarea
@@ -348,7 +403,7 @@ function EditarQuestoesForm({
                 placeholder="Descrição"
                 value={formTema.descricao}
                 onChange={handleTemaChange}
-                className="w-full min-h-24 rounded-xl border border-border bg-background px-4 py-3 text-foreground outline-none focus:border-amber-500"
+                className="w-full min-h-24 rounded-xl border border-border bg-background px-4 py-3 text-foreground outline-none focus:border-sky-500"
               />
             </div>
 
@@ -360,7 +415,7 @@ function EditarQuestoesForm({
               <button
                 type="button"
                 onClick={adicionarQuestao}
-                className="inline-flex items-center gap-2 rounded-lg bg-amber-600 px-4 py-2 text-sm font-medium text-white transition hover:bg-amber-700"
+                className="inline-flex items-center gap-2 rounded-xl bg-sky-500 px-4 py-2 text-sm font-medium text-white transition hover:bg-sky-600"
               >
                 <Plus className="h-4 w-4" />
                 Adicionar Questão
@@ -381,96 +436,142 @@ function EditarQuestoesForm({
                     <button
                       type="button"
                       onClick={() => removerQuestao(index)}
-                      className="inline-flex items-center gap-2 rounded-lg border border-rose-500/40 px-3 py-2 text-sm font-medium text-rose-500 transition hover:bg-rose-500/10"
+                      className="inline-flex items-center gap-2 rounded-xl border border-rose-500/40 px-3 py-2 text-sm font-medium text-rose-500 transition hover:bg-rose-500/10"
                     >
                       <Trash2 className="h-4 w-4" />
                       Remover
                     </button>
                   </div>
 
+                  <select
+                    value={q.tipo}
+                    onChange={(e) =>
+                      handleQuestaoChange(
+                        index,
+                        "tipo",
+                        e.target.value as "fechada" | "aberta"
+                      )
+                    }
+                    className="w-full rounded-xl border border-border bg-background px-4 py-3 text-foreground outline-none focus:border-sky-500"
+                  >
+                    <option value="fechada">Questão fechada</option>
+                    <option value="aberta">Questão aberta</option>
+                  </select>
+
                   <textarea
-                    placeholder="Pergunta"
+                    placeholder="Enunciado da questão"
                     value={q.pergunta}
                     onChange={(e) =>
                       handleQuestaoChange(index, "pergunta", e.target.value)
                     }
-                    className="w-full min-h-24 rounded-xl border border-border bg-background px-4 py-3 text-foreground outline-none focus:border-amber-500"
+                    className="w-full min-h-24 rounded-xl border border-border bg-background px-4 py-3 text-foreground outline-none focus:border-sky-500"
                   />
 
-                  <div className="grid gap-4 md:grid-cols-2">
-                    <input
-                      placeholder="Alternativa A"
-                      value={q.alternativa_a}
-                      onChange={(e) =>
-                        handleQuestaoChange(
-                          index,
-                          "alternativa_a",
-                          e.target.value
-                        )
-                      }
-                      className="w-full rounded-xl border border-border bg-background px-4 py-3 text-foreground outline-none focus:border-amber-500"
-                    />
+                  <div>
+                    <div className="mb-2 flex items-center gap-2 text-sm font-medium text-foreground">
+                      <ImageIcon className="h-4 w-4 text-sky-400" />
+                      Imagem da questão
+                    </div>
 
                     <input
-                      placeholder="Alternativa B"
-                      value={q.alternativa_b}
+                      placeholder="Cole aqui a URL da imagem"
+                      value={q.imagem_url}
                       onChange={(e) =>
-                        handleQuestaoChange(
-                          index,
-                          "alternativa_b",
-                          e.target.value
-                        )
+                        handleQuestaoChange(index, "imagem_url", e.target.value)
                       }
-                      className="w-full rounded-xl border border-border bg-background px-4 py-3 text-foreground outline-none focus:border-amber-500"
+                      className="w-full rounded-xl border border-border bg-background px-4 py-3 text-foreground outline-none focus:border-sky-500"
                     />
 
-                    <input
-                      placeholder="Alternativa C"
-                      value={q.alternativa_c}
-                      onChange={(e) =>
-                        handleQuestaoChange(
-                          index,
-                          "alternativa_c",
-                          e.target.value
-                        )
-                      }
-                      className="w-full rounded-xl border border-border bg-background px-4 py-3 text-foreground outline-none focus:border-amber-500"
-                    />
-
-                    <input
-                      placeholder="Alternativa D"
-                      value={q.alternativa_d}
-                      onChange={(e) =>
-                        handleQuestaoChange(
-                          index,
-                          "alternativa_d",
-                          e.target.value
-                        )
-                      }
-                      className="w-full rounded-xl border border-border bg-background px-4 py-3 text-foreground outline-none focus:border-amber-500"
-                    />
+                    {q.imagem_url && (
+                      <img
+                        src={q.imagem_url}
+                        alt="Prévia da imagem"
+                        className="mt-4 max-h-72 rounded-xl border border-border object-contain"
+                      />
+                    )}
                   </div>
 
-                  <select
-                    value={q.correta}
-                    onChange={(e) =>
-                      handleQuestaoChange(index, "correta", e.target.value)
-                    }
-                    className="w-full rounded-xl border border-border bg-background px-4 py-3 text-foreground outline-none focus:border-amber-500"
-                  >
-                    <option value="A">Resposta correta: A</option>
-                    <option value="B">Resposta correta: B</option>
-                    <option value="C">Resposta correta: C</option>
-                    <option value="D">Resposta correta: D</option>
-                  </select>
+                  {q.tipo === "fechada" ? (
+                    <>
+                      <div className="grid gap-4 md:grid-cols-2">
+                        <input
+                          placeholder="Alternativa A"
+                          value={q.alternativa_a}
+                          onChange={(e) =>
+                            handleQuestaoChange(index, "alternativa_a", e.target.value)
+                          }
+                          className="w-full rounded-xl border border-border bg-background px-4 py-3 text-foreground outline-none focus:border-sky-500"
+                        />
+
+                        <input
+                          placeholder="Alternativa B"
+                          value={q.alternativa_b}
+                          onChange={(e) =>
+                            handleQuestaoChange(index, "alternativa_b", e.target.value)
+                          }
+                          className="w-full rounded-xl border border-border bg-background px-4 py-3 text-foreground outline-none focus:border-sky-500"
+                        />
+
+                        <input
+                          placeholder="Alternativa C"
+                          value={q.alternativa_c}
+                          onChange={(e) =>
+                            handleQuestaoChange(index, "alternativa_c", e.target.value)
+                          }
+                          className="w-full rounded-xl border border-border bg-background px-4 py-3 text-foreground outline-none focus:border-sky-500"
+                        />
+
+                        <input
+                          placeholder="Alternativa D"
+                          value={q.alternativa_d}
+                          onChange={(e) =>
+                            handleQuestaoChange(index, "alternativa_d", e.target.value)
+                          }
+                          className="w-full rounded-xl border border-border bg-background px-4 py-3 text-foreground outline-none focus:border-sky-500"
+                        />
+
+                        <input
+                          placeholder="Alternativa E opcional"
+                          value={q.alternativa_e}
+                          onChange={(e) =>
+                            handleQuestaoChange(index, "alternativa_e", e.target.value)
+                          }
+                          className="w-full rounded-xl border border-border bg-background px-4 py-3 text-foreground outline-none focus:border-sky-500 md:col-span-2"
+                        />
+                      </div>
+
+                      <select
+                        value={q.correta}
+                        onChange={(e) =>
+                          handleQuestaoChange(index, "correta", e.target.value)
+                        }
+                        className="w-full rounded-xl border border-border bg-background px-4 py-3 text-foreground outline-none focus:border-sky-500"
+                      >
+                        <option value="A">Resposta correta: A</option>
+                        <option value="B">Resposta correta: B</option>
+                        <option value="C">Resposta correta: C</option>
+                        <option value="D">Resposta correta: D</option>
+                        <option value="E">Resposta correta: E</option>
+                      </select>
+                    </>
+                  ) : (
+                    <textarea
+                      placeholder="Resposta esperada da questão aberta"
+                      value={q.resposta_aberta}
+                      onChange={(e) =>
+                        handleQuestaoChange(index, "resposta_aberta", e.target.value)
+                      }
+                      className="w-full min-h-28 rounded-xl border border-border bg-background px-4 py-3 text-foreground outline-none focus:border-sky-500"
+                    />
+                  )}
 
                   <textarea
-                    placeholder="Comentário da questão"
+                    placeholder="Comentário/explicação que aparece após a resposta"
                     value={q.comentario}
                     onChange={(e) =>
                       handleQuestaoChange(index, "comentario", e.target.value)
                     }
-                    className="w-full min-h-28 rounded-xl border border-border bg-background px-4 py-3 text-foreground outline-none focus:border-amber-500"
+                    className="w-full min-h-28 rounded-xl border border-border bg-background px-4 py-3 text-foreground outline-none focus:border-sky-500"
                   />
                 </div>
               ))}
@@ -479,7 +580,7 @@ function EditarQuestoesForm({
             <button
               type="submit"
               disabled={salvando}
-              className="inline-flex w-full items-center justify-center gap-2 rounded-xl bg-amber-600 px-4 py-3 font-medium text-white transition hover:bg-amber-700 disabled:opacity-60"
+              className="inline-flex w-full items-center justify-center gap-2 rounded-xl bg-sky-500 px-4 py-3 font-medium text-white transition hover:bg-sky-600 disabled:opacity-60"
             >
               <Save className="h-4 w-4" />
               {salvando ? "Salvando..." : "Salvar Alterações"}

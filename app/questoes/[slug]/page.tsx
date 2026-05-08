@@ -11,6 +11,7 @@ import {
   ChevronRight,
   RotateCcw,
   Pencil,
+  Eye,
 } from "lucide-react"
 import Link from "next/link"
 import { useEffect, useState } from "react"
@@ -29,13 +30,20 @@ type Tema = {
 type Questao = {
   id: string
   tema_id: string
-  pergunta: string
-  alternativa_a: string
-  alternativa_b: string
-  alternativa_c: string
-  alternativa_d: string
-  correta: string
+  tipo: "fechada" | "aberta" | null
+  pergunta: string | null
+  enunciado?: string | null
+  imagem_url: string | null
+  alternativa_a: string | null
+  alternativa_b: string | null
+  alternativa_c: string | null
+  alternativa_d: string | null
+  alternativa_e: string | null
+  correta: string | null
+  resposta_correta?: string | null
+  resposta_aberta: string | null
   comentario: string | null
+  explicacao?: string | null
   ordem: number | null
 }
 
@@ -49,6 +57,7 @@ export default function QuestaoDetailPage() {
 
   const [currentQuestion, setCurrentQuestion] = useState(0)
   const [selectedAnswer, setSelectedAnswer] = useState<number | null>(null)
+  const [openAnswer, setOpenAnswer] = useState("")
   const [showResult, setShowResult] = useState(false)
   const [score, setScore] = useState(0)
   const [finished, setFinished] = useState(false)
@@ -158,16 +167,21 @@ export default function QuestaoDetailPage() {
 
   const question = questoes[currentQuestion]
   const totalQuestions = questoes.length
+  const tipoQuestao = question.tipo || "fechada"
+  const pergunta = question.pergunta || question.enunciado || ""
+  const comentario = question.comentario || question.explicacao || ""
 
   const alternativas = [
     question.alternativa_a,
     question.alternativa_b,
     question.alternativa_c,
     question.alternativa_d,
-  ]
+    question.alternativa_e,
+  ].filter((alt): alt is string => Boolean(alt && alt.trim()))
 
-  const corretaIndex = ["A", "B", "C", "D"].indexOf(
-    String(question.correta).toUpperCase()
+  const correta = question.correta || question.resposta_correta || "A"
+  const corretaIndex = ["A", "B", "C", "D", "E"].indexOf(
+    String(correta).toUpperCase()
   )
 
   function handleSelect(index: number) {
@@ -185,23 +199,34 @@ export default function QuestaoDetailPage() {
   }
 
   function handleConfirm() {
-    if (selectedAnswer === null) return
+    if (tipoQuestao === "fechada" && selectedAnswer === null) return
+    if (tipoQuestao === "aberta" && !openAnswer.trim()) return
 
     setShowResult(true)
 
-    const acertou = selectedAnswer === corretaIndex
+    if (tipoQuestao === "fechada") {
+      const acertou = selectedAnswer === corretaIndex
 
-    if (acertou) {
-      setScore((s) => s + 1)
+      if (acertou) {
+        setScore((s) => s + 1)
+      }
+
+      trackEvent({
+        event_type: acertou ? "questao_correct" : "questao_wrong",
+        page_path: `/questoes/${tema?.slug}`,
+        section: "questoes",
+        slug: tema?.slug,
+        title: tema?.titulo,
+      })
+    } else {
+      trackEvent({
+        event_type: "questao_aberta_answered",
+        page_path: `/questoes/${tema?.slug}`,
+        section: "questoes",
+        slug: tema?.slug,
+        title: tema?.titulo,
+      })
     }
-
-    trackEvent({
-      event_type: acertou ? "questao_correct" : "questao_wrong",
-      page_path: `/questoes/${tema?.slug}`,
-      section: "questoes",
-      slug: tema?.slug,
-      title: tema?.titulo,
-    })
   }
 
   function handleNext() {
@@ -216,6 +241,7 @@ export default function QuestaoDetailPage() {
 
       setCurrentQuestion((c) => c + 1)
       setSelectedAnswer(null)
+      setOpenAnswer("")
       setShowResult(false)
     } else {
       setFinished(true)
@@ -241,13 +267,16 @@ export default function QuestaoDetailPage() {
 
     setCurrentQuestion(0)
     setSelectedAnswer(null)
+    setOpenAnswer("")
     setShowResult(false)
     setScore(0)
     setFinished(false)
   }
 
   if (finished) {
-    const percentage = Math.round((score / totalQuestions) * 100)
+    const fechadas = questoes.filter((q) => (q.tipo || "fechada") === "fechada")
+    const percentage =
+      fechadas.length > 0 ? Math.round((score / fechadas.length) * 100) : 0
 
     return (
       <div className="min-h-screen bg-background">
@@ -277,7 +306,7 @@ export default function QuestaoDetailPage() {
               </h2>
 
               <p className="text-muted-foreground mb-6">
-                Você acertou {score} de {totalQuestions} questões.
+                Você acertou {score} de {fechadas.length} questões fechadas.
               </p>
 
               <div className="flex flex-col sm:flex-row gap-3 justify-center">
@@ -366,78 +395,137 @@ export default function QuestaoDetailPage() {
 
           <section className="bg-card rounded-3xl border border-border overflow-hidden shadow-xl shadow-sky-500/5">
             <div className="p-5 sm:p-8">
-              <p className="text-lg font-semibold text-foreground mb-6 leading-relaxed">
-                {question.pergunta}
-              </p>
-
-              <div className="space-y-3">
-                {alternativas.map((alt, index) => {
-                  const isSelected = selectedAnswer === index
-                  const isCorrect = index === corretaIndex
-                  const showCorrect = showResult && isCorrect
-                  const showWrong = showResult && isSelected && !isCorrect
-
-                  return (
-                    <button
-                      key={index}
-                      onClick={() => handleSelect(index)}
-                      disabled={showResult}
-                      className={cn(
-                        "w-full flex items-center gap-3 p-4 rounded-2xl border text-left transition-all duration-200",
-                        !showResult &&
-                          isSelected &&
-                          "border-sky-500 bg-sky-500/10",
-                        !showResult &&
-                          !isSelected &&
-                          "border-border hover:border-sky-500/50 hover:bg-sky-500/5",
-                        showCorrect &&
-                          "border-emerald-500 bg-emerald-500/10",
-                        showWrong && "border-rose-500 bg-rose-500/10",
-                        showResult &&
-                          !showCorrect &&
-                          !showWrong &&
-                          "opacity-50"
-                      )}
-                    >
-                      <span
-                        className={cn(
-                          "w-8 h-8 rounded-xl flex items-center justify-center text-sm font-medium shrink-0",
-                          !showResult &&
-                            isSelected &&
-                            "bg-sky-500 text-white",
-                          !showResult &&
-                            !isSelected &&
-                            "bg-secondary text-secondary-foreground",
-                          showCorrect && "bg-emerald-500 text-white",
-                          showWrong && "bg-rose-500 text-white"
-                        )}
-                      >
-                        {showCorrect ? (
-                          <CheckCircle2 className="h-5 w-5" />
-                        ) : showWrong ? (
-                          <XCircle className="h-5 w-5" />
-                        ) : (
-                          String.fromCharCode(65 + index)
-                        )}
-                      </span>
-
-                      <span className="flex-1 text-sm sm:text-base text-foreground">
-                        {alt}
-                      </span>
-                    </button>
-                  )
-                })}
+              <div className="mb-4 inline-flex rounded-full bg-sky-500/10 px-3 py-1 text-xs font-medium text-sky-500 dark:text-sky-400">
+                {tipoQuestao === "aberta" ? "Questão aberta" : "Questão fechada"}
               </div>
 
-              {showResult && (
-                <div className="mt-6 p-4 rounded-2xl bg-muted/50 border border-border">
-                  <p className="text-sm font-medium text-foreground mb-1">
-                    Comentário:
-                  </p>
+              <p className="text-lg font-semibold text-foreground mb-6 leading-relaxed">
+                {pergunta}
+              </p>
 
-                  <p className="text-sm text-muted-foreground leading-relaxed">
-                    {question.comentario || "Sem comentário cadastrado."}
-                  </p>
+              {question.imagem_url && (
+                <img
+                  src={question.imagem_url}
+                  alt="Imagem da questão"
+                  className="mb-6 max-h-[420px] w-full rounded-2xl border border-border object-contain"
+                />
+              )}
+
+              {tipoQuestao === "fechada" ? (
+                <div className="space-y-3">
+                  {alternativas.map((alt, index) => {
+                    const isSelected = selectedAnswer === index
+                    const isCorrect = index === corretaIndex
+                    const showCorrect = showResult && isCorrect
+                    const showWrong = showResult && isSelected && !isCorrect
+
+                    return (
+                      <button
+                        key={index}
+                        onClick={() => handleSelect(index)}
+                        disabled={showResult}
+                        className={cn(
+                          "w-full flex items-center gap-3 p-4 rounded-2xl border text-left transition-all duration-200",
+                          !showResult &&
+                            isSelected &&
+                            "border-sky-500 bg-sky-500/10",
+                          !showResult &&
+                            !isSelected &&
+                            "border-border hover:border-sky-500/50 hover:bg-sky-500/5",
+                          showCorrect &&
+                            "border-emerald-500 bg-emerald-500/10",
+                          showWrong && "border-rose-500 bg-rose-500/10",
+                          showResult &&
+                            !showCorrect &&
+                            !showWrong &&
+                            "opacity-50"
+                        )}
+                      >
+                        <span
+                          className={cn(
+                            "w-8 h-8 rounded-xl flex items-center justify-center text-sm font-medium shrink-0",
+                            !showResult &&
+                              isSelected &&
+                              "bg-sky-500 text-white",
+                            !showResult &&
+                              !isSelected &&
+                              "bg-secondary text-secondary-foreground",
+                            showCorrect && "bg-emerald-500 text-white",
+                            showWrong && "bg-rose-500 text-white"
+                          )}
+                        >
+                          {showCorrect ? (
+                            <CheckCircle2 className="h-5 w-5" />
+                          ) : showWrong ? (
+                            <XCircle className="h-5 w-5" />
+                          ) : (
+                            String.fromCharCode(65 + index)
+                          )}
+                        </span>
+
+                        <span className="flex-1 text-sm sm:text-base text-foreground">
+                          {alt}
+                        </span>
+                      </button>
+                    )
+                  })}
+                </div>
+              ) : (
+                <div className="space-y-4">
+                  <textarea
+                    value={openAnswer}
+                    onChange={(e) => setOpenAnswer(e.target.value)}
+                    disabled={showResult}
+                    placeholder="Digite sua resposta aqui..."
+                    className="min-h-36 w-full resize-y rounded-2xl border border-border bg-background px-4 py-3 text-sm text-foreground outline-none transition focus:border-sky-500 disabled:opacity-70"
+                  />
+
+                  {!showResult && (
+                    <p className="text-xs text-muted-foreground">
+                      Depois de responder, clique em confirmar para ver a
+                      resposta esperada e o comentário.
+                    </p>
+                  )}
+                </div>
+              )}
+
+              {showResult && (
+                <div className="mt-6 space-y-4">
+                  {tipoQuestao === "aberta" && (
+                    <>
+                      <div className="rounded-2xl border border-border bg-muted/40 p-4">
+                        <p className="mb-1 text-sm font-medium text-foreground">
+                          Sua resposta:
+                        </p>
+
+                        <p className="whitespace-pre-line text-sm leading-relaxed text-muted-foreground">
+                          {openAnswer}
+                        </p>
+                      </div>
+
+                      <div className="rounded-2xl border border-sky-500/20 bg-sky-500/10 p-4">
+                        <p className="mb-1 flex items-center gap-2 text-sm font-medium text-sky-500 dark:text-sky-400">
+                          <Eye className="h-4 w-4" />
+                          Resposta esperada:
+                        </p>
+
+                        <p className="whitespace-pre-line text-sm leading-relaxed text-foreground">
+                          {question.resposta_aberta ||
+                            "Sem resposta esperada cadastrada."}
+                        </p>
+                      </div>
+                    </>
+                  )}
+
+                  <div className="rounded-2xl border border-border bg-muted/50 p-4">
+                    <p className="text-sm font-medium text-foreground mb-1">
+                      Comentário:
+                    </p>
+
+                    <p className="whitespace-pre-line text-sm text-muted-foreground leading-relaxed">
+                      {comentario || "Sem comentário cadastrado."}
+                    </p>
+                  </div>
                 </div>
               )}
             </div>
@@ -446,7 +534,11 @@ export default function QuestaoDetailPage() {
               {!showResult ? (
                 <Button
                   onClick={handleConfirm}
-                  disabled={selectedAnswer === null}
+                  disabled={
+                    tipoQuestao === "fechada"
+                      ? selectedAnswer === null
+                      : !openAnswer.trim()
+                  }
                   className="bg-sky-500 hover:bg-sky-600"
                 >
                   Confirmar
