@@ -19,6 +19,7 @@ import { useParams } from "next/navigation"
 import { cn } from "@/lib/utils"
 import { supabase } from "@/lib/supabase"
 import { trackEvent } from "@/lib/analytics"
+import ReactMarkdown from "react-markdown"
 
 type Tema = {
   id: string
@@ -188,16 +189,7 @@ export default function QuestaoDetailPage() {
 
   function handleSelect(index: number) {
     if (showResult) return
-
     setSelectedAnswer(index)
-
-    trackEvent({
-      event_type: "questao_select_answer",
-      page_path: `/questoes/${tema?.slug}`,
-      section: "questoes",
-      slug: tema?.slug,
-      title: tema?.titulo,
-    })
   }
 
   function handleConfirm() {
@@ -207,66 +199,24 @@ export default function QuestaoDetailPage() {
     setShowResult(true)
 
     if (tipoQuestao === "fechada") {
-      const acertou = selectedAnswer === corretaIndex
-
-      if (acertou) {
+      if (selectedAnswer === corretaIndex) {
         setScore((s) => s + 1)
       }
-
-      trackEvent({
-        event_type: acertou ? "questao_correct" : "questao_wrong",
-        page_path: `/questoes/${tema?.slug}`,
-        section: "questoes",
-        slug: tema?.slug,
-        title: tema?.titulo,
-      })
-    } else {
-      trackEvent({
-        event_type: "questao_aberta_answered",
-        page_path: `/questoes/${tema?.slug}`,
-        section: "questoes",
-        slug: tema?.slug,
-        title: tema?.titulo,
-      })
     }
   }
 
   function handleNext() {
     if (currentQuestion < totalQuestions - 1) {
-      trackEvent({
-        event_type: "questao_next",
-        page_path: `/questoes/${tema?.slug}`,
-        section: "questoes",
-        slug: tema?.slug,
-        title: tema?.titulo,
-      })
-
       setCurrentQuestion((c) => c + 1)
       setSelectedAnswer(null)
       setOpenAnswer("")
       setShowResult(false)
     } else {
       setFinished(true)
-
-      trackEvent({
-        event_type: "quiz_finished",
-        page_path: `/questoes/${tema?.slug}`,
-        section: "questoes",
-        slug: tema?.slug,
-        title: tema?.titulo,
-      })
     }
   }
 
   function handleRestart() {
-    trackEvent({
-      event_type: "quiz_restart",
-      page_path: `/questoes/${tema?.slug}`,
-      section: "questoes",
-      slug: tema?.slug,
-      title: tema?.titulo,
-    })
-
     setCurrentQuestion(0)
     setSelectedAnswer(null)
     setOpenAnswer("")
@@ -372,27 +322,6 @@ export default function QuestaoDetailPage() {
                 </p>
               </div>
             </div>
-
-            <div className="mt-5">
-              <div className="flex items-center justify-between text-sm mb-2">
-                <span className="text-muted-foreground">
-                  Questão {currentQuestion + 1} de {totalQuestions}
-                </span>
-
-                <span className="font-medium text-sky-400">
-                  {score} acertos
-                </span>
-              </div>
-
-              <div className="h-2 bg-secondary rounded-full overflow-hidden">
-                <div
-                  className="h-full bg-gradient-to-r from-sky-500 to-cyan-500 transition-all duration-300"
-                  style={{
-                    width: `${((currentQuestion + 1) / totalQuestions) * 100}%`,
-                  }}
-                />
-              </div>
-            </div>
           </section>
 
           <section className="bg-card rounded-3xl border border-border overflow-hidden shadow-xl shadow-sky-500/5">
@@ -401,9 +330,33 @@ export default function QuestaoDetailPage() {
                 {tipoQuestao === "aberta" ? "Questão aberta" : "Questão fechada"}
               </div>
 
-              <p className="text-lg font-semibold text-foreground mb-6 leading-relaxed">
-                {pergunta}
-              </p>
+              <div className="mb-6 text-lg font-semibold leading-relaxed text-foreground">
+                <ReactMarkdown
+                  components={{
+                    p: ({ children }) => (
+                      <p className="mb-4 leading-relaxed text-foreground">
+                        {children}
+                      </p>
+                    ),
+
+                    strong: ({ children }) => (
+                      <strong className="font-bold text-sky-400">
+                        {children}
+                      </strong>
+                    ),
+
+                    img: ({ src, alt }) => (
+                      <img
+                        src={src || ""}
+                        alt={alt || ""}
+                        className="my-6 max-h-[520px] w-full rounded-2xl border border-border object-contain"
+                      />
+                    ),
+                  }}
+                >
+                  {pergunta}
+                </ReactMarkdown>
+              </div>
 
               {question.imagem_url && (
                 <img
