@@ -3,13 +3,7 @@
 import { useState } from "react"
 import { useRouter } from "next/navigation"
 import Link from "next/link"
-import {
-  ArrowLeft,
-  Save,
-  Plus,
-  Trash2,
-  ImageIcon,
-} from "lucide-react"
+import { ArrowLeft, Save, Plus, Trash2, ImageIcon } from "lucide-react"
 
 import { Sidebar } from "@/components/sidebar"
 import { AdminOnly } from "@/components/AdminOnly"
@@ -53,7 +47,6 @@ export default function NovaQuestaoPage() {
 
 function NovaQuestaoForm() {
   const router = useRouter()
-
   const [salvando, setSalvando] = useState(false)
 
   const [formTema, setFormTema] = useState({
@@ -61,9 +54,7 @@ function NovaQuestaoForm() {
     descricao: "",
   })
 
-  const [questoes, setQuestoes] = useState<Questao[]>([
-    questaoVazia,
-  ])
+  const [questoes, setQuestoes] = useState<Questao[]>([{ ...questaoVazia }])
 
   function gerarSlug(texto: string) {
     return texto
@@ -109,10 +100,7 @@ function NovaQuestaoForm() {
       return
     }
 
-    const confirmar = confirm(
-      "Deseja remover esta questão?"
-    )
-
+    const confirmar = confirm("Deseja remover esta questão?")
     if (!confirmar) return
 
     setQuestoes(questoes.filter((_, i) => i !== index))
@@ -129,12 +117,14 @@ function NovaQuestaoForm() {
       return
     }
 
-    const slug = gerarSlug(titulo)
+    const slugBase = gerarSlug(titulo)
 
-    if (!slug) {
+    if (!slugBase) {
       alert("Título inválido.")
       return
     }
+
+    const slug = `${slugBase}-${Date.now()}`
 
     for (const q of questoes) {
       if (!q.pergunta.trim()) {
@@ -149,105 +139,76 @@ function NovaQuestaoForm() {
           !q.alternativa_c.trim() ||
           !q.alternativa_d.trim()
         ) {
-          alert(
-            "Preencha todas as alternativas das questões fechadas."
-          )
+          alert("Preencha todas as alternativas das questões fechadas.")
           return
         }
       }
 
-      if (
-        q.tipo === "aberta" &&
-        !q.resposta_aberta.trim()
-      ) {
-        alert(
-          "Preencha a resposta esperada das questões abertas."
-        )
+      if (q.tipo === "aberta" && !q.resposta_aberta.trim()) {
+        alert("Preencha a resposta esperada das questões abertas.")
         return
       }
     }
 
     setSalvando(true)
 
-    const { data: temaData, error: temaError } =
-      await supabase
-        .from("temas_questoes")
-        .insert([
-          {
-            titulo,
-            descricao,
-            slug,
-          },
-        ])
-        .select()
-        .single()
+    const { data: temaData, error: temaError } = await supabase
+      .from("temas_questoes")
+      .insert([
+        {
+          titulo,
+          descricao: descricao || null,
+          slug,
+        },
+      ])
+      .select()
+      .single()
 
     if (temaError || !temaData) {
       setSalvando(false)
 
-      alert("Erro ao criar tema.")
-      console.error(temaError)
+      console.error("ERRO AO CRIAR TEMA:", temaError)
+
+      alert(`
+Erro ao criar tema:
+${temaError?.message || "Tema não retornado pelo Supabase."}
+
+Código:
+${temaError?.code || "sem código"}
+      `)
 
       return
     }
 
-    const questoesFormatadas = questoes.map(
-      (q, index) => ({
-        tema_id: temaData.id,
+    const questoesFormatadas = questoes.map((q, index) => ({
+      tema_id: temaData.id,
 
-        tipo: q.tipo,
+      tipo: q.tipo,
 
-        pergunta: q.pergunta,
-        enunciado: q.pergunta,
+      pergunta: q.pergunta.trim(),
+      enunciado: q.pergunta.trim(),
 
-        imagem_url: q.imagem_url || null,
+      imagem_url: q.imagem_url.trim() || null,
 
-        alternativa_a:
-          q.tipo === "fechada"
-            ? q.alternativa_a
-            : null,
+      alternativa_a: q.tipo === "fechada" ? q.alternativa_a.trim() : null,
+      alternativa_b: q.tipo === "fechada" ? q.alternativa_b.trim() : null,
+      alternativa_c: q.tipo === "fechada" ? q.alternativa_c.trim() : null,
+      alternativa_d: q.tipo === "fechada" ? q.alternativa_d.trim() : null,
+      alternativa_e:
+        q.tipo === "fechada" && q.alternativa_e.trim()
+          ? q.alternativa_e.trim()
+          : null,
 
-        alternativa_b:
-          q.tipo === "fechada"
-            ? q.alternativa_b
-            : null,
+      correta: q.tipo === "fechada" ? q.correta : null,
+      resposta_correta: q.tipo === "fechada" ? q.correta : null,
 
-        alternativa_c:
-          q.tipo === "fechada"
-            ? q.alternativa_c
-            : null,
+      resposta_aberta: q.tipo === "aberta" ? q.resposta_aberta.trim() : null,
 
-        alternativa_d:
-          q.tipo === "fechada"
-            ? q.alternativa_d
-            : null,
+      comentario: q.comentario.trim() || null,
+      explicacao: q.comentario.trim() || null,
 
-        alternativa_e:
-          q.tipo === "fechada"
-            ? q.alternativa_e || null
-            : null,
-
-        correta:
-          q.tipo === "fechada"
-            ? q.correta
-            : null,
-
-        resposta_correta:
-          q.tipo === "fechada"
-            ? q.correta
-            : null,
-
-        resposta_aberta:
-          q.tipo === "aberta"
-            ? q.resposta_aberta
-            : null,
-
-        comentario: q.comentario || null,
-        explicacao: q.comentario || null,
-
-        ordem: index + 1,
-      })
-    )
+      ordem: index + 1,
+    }))
 
     const { error: questoesError } = await supabase
       .from("questoes")
@@ -256,8 +217,16 @@ function NovaQuestaoForm() {
     setSalvando(false)
 
     if (questoesError) {
-      alert("Erro ao salvar questões.")
-      console.error(questoesError)
+      console.error("ERRO AO SALVAR QUESTÕES:", questoesError)
+
+      alert(`
+Erro ao salvar questões:
+${questoesError.message}
+
+Código:
+${questoesError.code}
+      `)
+
       return
     }
 
@@ -288,14 +257,9 @@ function NovaQuestaoForm() {
             </p>
           </div>
 
-          <form
-            onSubmit={handleSubmit}
-            className="space-y-6"
-          >
+          <form onSubmit={handleSubmit} className="space-y-6">
             <div className="rounded-2xl border border-border bg-card p-6 space-y-4">
-              <h2 className="text-lg font-semibold text-foreground">
-                Tema
-              </h2>
+              <h2 className="text-lg font-semibold text-foreground">Tema</h2>
 
               <input
                 name="titulo"
@@ -342,9 +306,7 @@ function NovaQuestaoForm() {
 
                     <button
                       type="button"
-                      onClick={() =>
-                        removerQuestao(index)
-                      }
+                      onClick={() => removerQuestao(index)}
                       className="inline-flex items-center gap-2 rounded-xl border border-rose-500/40 px-3 py-2 text-sm font-medium text-rose-500 transition hover:bg-rose-500/10"
                     >
                       <Trash2 className="h-4 w-4" />
@@ -358,29 +320,20 @@ function NovaQuestaoForm() {
                       handleQuestaoChange(
                         index,
                         "tipo",
-                        e.target.value
+                        e.target.value as "fechada" | "aberta"
                       )
                     }
                     className="w-full rounded-xl border border-border bg-background px-4 py-3 text-foreground outline-none focus:border-sky-500"
                   >
-                    <option value="fechada">
-                      Questão fechada
-                    </option>
-
-                    <option value="aberta">
-                      Questão aberta
-                    </option>
+                    <option value="fechada">Questão fechada</option>
+                    <option value="aberta">Questão aberta</option>
                   </select>
 
                   <textarea
                     placeholder="Pergunta/enunciado"
                     value={q.pergunta}
                     onChange={(e) =>
-                      handleQuestaoChange(
-                        index,
-                        "pergunta",
-                        e.target.value
-                      )
+                      handleQuestaoChange(index, "pergunta", e.target.value)
                     }
                     className="w-full min-h-28 rounded-xl border border-border bg-background px-4 py-3 text-foreground outline-none focus:border-sky-500"
                   />
@@ -395,11 +348,7 @@ function NovaQuestaoForm() {
                       placeholder="Cole a URL da imagem"
                       value={q.imagem_url}
                       onChange={(e) =>
-                        handleQuestaoChange(
-                          index,
-                          "imagem_url",
-                          e.target.value
-                        )
+                        handleQuestaoChange(index, "imagem_url", e.target.value)
                       }
                       className="w-full rounded-xl border border-border bg-background px-4 py-3 text-foreground outline-none focus:border-sky-500"
                     />
@@ -485,33 +434,15 @@ function NovaQuestaoForm() {
                       <select
                         value={q.correta}
                         onChange={(e) =>
-                          handleQuestaoChange(
-                            index,
-                            "correta",
-                            e.target.value
-                          )
+                          handleQuestaoChange(index, "correta", e.target.value)
                         }
                         className="w-full rounded-xl border border-border bg-background px-4 py-3 text-foreground outline-none focus:border-sky-500"
                       >
-                        <option value="A">
-                          Correta: A
-                        </option>
-
-                        <option value="B">
-                          Correta: B
-                        </option>
-
-                        <option value="C">
-                          Correta: C
-                        </option>
-
-                        <option value="D">
-                          Correta: D
-                        </option>
-
-                        <option value="E">
-                          Correta: E
-                        </option>
+                        <option value="A">Correta: A</option>
+                        <option value="B">Correta: B</option>
+                        <option value="C">Correta: C</option>
+                        <option value="D">Correta: D</option>
+                        <option value="E">Correta: E</option>
                       </select>
                     </>
                   ) : (
@@ -533,11 +464,7 @@ function NovaQuestaoForm() {
                     placeholder="Comentário/explicação"
                     value={q.comentario}
                     onChange={(e) =>
-                      handleQuestaoChange(
-                        index,
-                        "comentario",
-                        e.target.value
-                      )
+                      handleQuestaoChange(index, "comentario", e.target.value)
                     }
                     className="w-full min-h-28 rounded-xl border border-border bg-background px-4 py-3 text-foreground outline-none focus:border-sky-500"
                   />
@@ -551,9 +478,7 @@ function NovaQuestaoForm() {
               className="inline-flex w-full items-center justify-center gap-2 rounded-xl bg-sky-500 px-4 py-3 font-medium text-white transition hover:bg-sky-600 disabled:opacity-60"
             >
               <Save className="h-4 w-4" />
-              {salvando
-                ? "Salvando..."
-                : "Salvar Tema"}
+              {salvando ? "Salvando..." : "Salvar Tema"}
             </button>
           </form>
         </div>
