@@ -170,6 +170,8 @@ export default function QuestaoDetailPage() {
   const tipoQuestao = question.tipo || "fechada"
   const pergunta = question.pergunta || question.enunciado || ""
   const comentario = question.comentario || question.explicacao || ""
+  const respostaComentada =
+    question.resposta_aberta || comentario || "Sem resposta comentada cadastrada."
 
   const alternativas = [
     question.alternativa_a,
@@ -483,7 +485,7 @@ export default function QuestaoDetailPage() {
                   {!showResult && (
                     <p className="text-xs text-muted-foreground">
                       Depois de responder, clique em confirmar para ver a
-                      resposta esperada e o comentário.
+                      resposta comentada.
                     </p>
                   )}
                 </div>
@@ -491,7 +493,7 @@ export default function QuestaoDetailPage() {
 
               {showResult && (
                 <div className="mt-6 space-y-4">
-                  {tipoQuestao === "aberta" && (
+                  {tipoQuestao === "aberta" ? (
                     <>
                       <div className="rounded-2xl border border-border bg-muted/40 p-4">
                         <p className="mb-1 text-sm font-medium text-foreground">
@@ -504,28 +506,27 @@ export default function QuestaoDetailPage() {
                       </div>
 
                       <div className="rounded-2xl border border-sky-500/20 bg-sky-500/10 p-4">
-                        <p className="mb-1 flex items-center gap-2 text-sm font-medium text-sky-500 dark:text-sky-400">
+                        <p className="mb-2 flex items-center gap-2 text-sm font-medium text-sky-500 dark:text-sky-400">
                           <Eye className="h-4 w-4" />
-                          Resposta esperada:
+                          Resposta comentada:
                         </p>
 
                         <p className="whitespace-pre-line text-sm leading-relaxed text-foreground">
-                          {question.resposta_aberta ||
-                            "Sem resposta esperada cadastrada."}
+                          {respostaComentada}
                         </p>
                       </div>
                     </>
+                  ) : (
+                    <div className="rounded-2xl border border-border bg-muted/50 p-4">
+                      <p className="text-sm font-medium text-foreground mb-1">
+                        Comentário:
+                      </p>
+
+                      <p className="whitespace-pre-line text-sm text-muted-foreground leading-relaxed">
+                        {comentario || "Sem comentário cadastrado."}
+                      </p>
+                    </div>
                   )}
-
-                  <div className="rounded-2xl border border-border bg-muted/50 p-4">
-                    <p className="text-sm font-medium text-foreground mb-1">
-                      Comentário:
-                    </p>
-
-                    <p className="whitespace-pre-line text-sm text-muted-foreground leading-relaxed">
-                      {comentario || "Sem comentário cadastrado."}
-                    </p>
-                  </div>
                 </div>
               )}
             </div>
