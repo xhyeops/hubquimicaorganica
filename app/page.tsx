@@ -36,17 +36,20 @@ export default function HomePage() {
   const [feed, setFeed] = useState<FeedItem[]>([])
 
   useEffect(() => {
-      trackEvent({
-    event_type: "page_view",
-    page_path: "/",
-    section: "home",
-    title: "Página inicial",
-  })
+    trackEvent({
+      event_type: "page_view",
+      page_path: "/",
+      section: "home",
+      title: "Página inicial",
+    })
+
     async function fetchData() {
       const [resumosCount, flashcardsCount, questoesCount] = await Promise.all([
         supabase.from("resumos").select("*", { count: "exact", head: true }),
         supabase.from("flashcards").select("*", { count: "exact", head: true }),
-        supabase.from("questoes").select("*", { count: "exact", head: true }),
+        supabase
+          .from("temas_questoes")
+          .select("*", { count: "exact", head: true }),
       ])
 
       setCounts({
@@ -55,7 +58,7 @@ export default function HomePage() {
         questoes: questoesCount.count || 0,
       })
 
-      const [resumos, flashcards, questoes] = await Promise.all([
+      const [resumos, flashcards, temasQuestoes] = await Promise.all([
         supabase
           .from("resumos")
           .select("id, titulo, slug, categoria, criado_em")
@@ -69,9 +72,9 @@ export default function HomePage() {
           .limit(5),
 
         supabase
-          .from("questoes")
-          .select("id, enunciado, categoria, criado_em")
-          .order("criado_em", { ascending: false })
+          .from("temas_questoes")
+          .select("id, titulo, slug, descricao, created_at")
+          .order("created_at", { ascending: false })
           .limit(5),
       ])
 
@@ -96,13 +99,13 @@ export default function HomePage() {
           icon: Layers,
         })),
 
-        ...(questoes.data || []).map((item: any) => ({
+        ...(temasQuestoes.data || []).map((item: any) => ({
           id: item.id,
           tipo: "Questão" as const,
-          titulo: item.enunciado,
-          categoria: item.categoria,
-          criado_em: item.criado_em,
-          href: "/questoes",
+          titulo: item.titulo,
+          categoria: item.descricao,
+          criado_em: item.created_at,
+          href: item.slug ? `/questoes/${item.slug}` : "/questoes",
           icon: HelpCircle,
         })),
       ]
@@ -222,7 +225,7 @@ export default function HomePage() {
                             </span>
 
                             {item.categoria && (
-                              <span className="text-[11px] sm:text-xs text-muted-foreground">
+                              <span className="line-clamp-1 text-[11px] sm:text-xs text-muted-foreground">
                                 {item.categoria}
                               </span>
                             )}
@@ -262,7 +265,7 @@ export default function HomePage() {
                 icon: Layers,
               },
               {
-                label: "Questões",
+                label: "Temas de questões",
                 value: counts.questoes,
                 href: "/questoes",
                 icon: HelpCircle,

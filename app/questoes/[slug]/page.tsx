@@ -12,6 +12,7 @@ import {
   RotateCcw,
   Pencil,
   Eye,
+  CheckCircle,
 } from "lucide-react"
 import Link from "next/link"
 import { useEffect, useState } from "react"
@@ -61,6 +62,8 @@ export default function QuestaoDetailPage() {
   const [openAnswer, setOpenAnswer] = useState("")
   const [showResult, setShowResult] = useState(false)
   const [score, setScore] = useState(0)
+  const [answeredClosed, setAnsweredClosed] = useState(0)
+  const [answeredOpen, setAnsweredOpen] = useState(0)
   const [finished, setFinished] = useState(false)
 
   useEffect(() => {
@@ -219,8 +222,14 @@ export default function QuestaoDetailPage() {
 
     setShowResult(true)
 
-    if (tipoQuestao === "fechada" && selectedAnswer === corretaIndex) {
-      setScore((s) => s + 1)
+    if (tipoQuestao === "fechada") {
+      setAnsweredClosed((value) => value + 1)
+
+      if (selectedAnswer === corretaIndex) {
+        setScore((s) => s + 1)
+      }
+    } else {
+      setAnsweredOpen((value) => value + 1)
     }
   }
 
@@ -234,13 +243,20 @@ export default function QuestaoDetailPage() {
     setOpenAnswer("")
     setShowResult(false)
     setScore(0)
+    setAnsweredClosed(0)
+    setAnsweredOpen(0)
     setFinished(false)
   }
 
   if (finished) {
-    const fechadas = questoes.filter((q) => (q.tipo || "fechada") === "fechada")
+    const totalFechadas = questoes.filter(
+      (q) => (q.tipo || "fechada") === "fechada"
+    ).length
+
+    const totalAbertas = questoes.filter((q) => q.tipo === "aberta").length
+
     const percentage =
-      fechadas.length > 0 ? Math.round((score / fechadas.length) * 100) : 0
+      answeredClosed > 0 ? Math.round((score / answeredClosed) * 100) : null
 
     return (
       <div className="min-h-screen bg-background">
@@ -252,17 +268,25 @@ export default function QuestaoDetailPage() {
               <div
                 className={cn(
                   "inline-flex items-center justify-center w-24 h-24 rounded-full mb-6",
-                  percentage >= 70 ? "bg-emerald-500/10" : "bg-amber-500/10"
+                  percentage === null
+                    ? "bg-sky-500/10"
+                    : percentage >= 70
+                      ? "bg-emerald-500/10"
+                      : "bg-amber-500/10"
                 )}
               >
-                <span
-                  className={cn(
-                    "text-3xl font-bold",
-                    percentage >= 70 ? "text-emerald-500" : "text-amber-500"
-                  )}
-                >
-                  {percentage}%
-                </span>
+                {percentage === null ? (
+                  <CheckCircle className="h-10 w-10 text-sky-400" />
+                ) : (
+                  <span
+                    className={cn(
+                      "text-3xl font-bold",
+                      percentage >= 70 ? "text-emerald-500" : "text-amber-500"
+                    )}
+                  >
+                    {percentage}%
+                  </span>
+                )}
               </div>
 
               <h2 className="text-2xl font-bold text-foreground mb-2">
@@ -270,8 +294,38 @@ export default function QuestaoDetailPage() {
               </h2>
 
               <p className="text-muted-foreground mb-6">
-                Você acertou {score} de {fechadas.length} questões fechadas.
+                Você chegou ao final das questões.
               </p>
+
+              <div className="mb-6 grid gap-3 text-left sm:grid-cols-2">
+                <div className="rounded-2xl border border-border bg-background/60 p-4">
+                  <p className="text-sm text-muted-foreground">
+                    Questões fechadas
+                  </p>
+
+                  <p className="mt-1 text-lg font-semibold text-foreground">
+                    {score} acertos
+                  </p>
+
+                  <p className="text-xs text-muted-foreground">
+                    {answeredClosed} respondidas de {totalFechadas}
+                  </p>
+                </div>
+
+                <div className="rounded-2xl border border-border bg-background/60 p-4">
+                  <p className="text-sm text-muted-foreground">
+                    Questões abertas
+                  </p>
+
+                  <p className="mt-1 text-lg font-semibold text-foreground">
+                    {answeredOpen} respondidas
+                  </p>
+
+                  <p className="text-xs text-muted-foreground">
+                    de {totalAbertas} questões abertas
+                  </p>
+                </div>
+              </div>
 
               <div className="flex flex-col sm:flex-row gap-3 justify-center">
                 <Button variant="outline" onClick={handleRestart}>
