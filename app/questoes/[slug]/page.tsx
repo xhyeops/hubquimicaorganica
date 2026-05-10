@@ -371,17 +371,21 @@ export default function QuestaoDetailPage() {
                         {children}
                       </p>
                     ),
+
                     strong: ({ children }) => (
                       <strong className="font-bold text-sky-400">
                         {children}
                       </strong>
                     ),
+
                     img: ({ src, alt }) => (
-                      <img
-                        src={src || ""}
-                        alt={alt || ""}
-                        className="my-6 max-h-[520px] w-full rounded-2xl border border-border object-contain"
-                      />
+                      <div className="my-6 flex justify-center">
+                        <img
+                          src={src || ""}
+                          alt={alt || ""}
+                          className="max-h-[420px] max-w-full rounded-2xl border border-border bg-white object-contain shadow-lg sm:max-w-[620px]"
+                        />
+                      </div>
                     ),
                   }}
                 >
@@ -390,11 +394,13 @@ export default function QuestaoDetailPage() {
               </div>
 
               {question.imagem_url && (
-                <img
-                  src={question.imagem_url}
-                  alt="Imagem da questão"
-                  className="mb-6 max-h-[420px] w-full rounded-2xl border border-border object-contain"
-                />
+                <div className="mb-6 flex justify-center">
+                  <img
+                    src={question.imagem_url}
+                    alt="Imagem da questão"
+                    className="max-h-[420px] max-w-full rounded-2xl border border-border bg-white object-contain shadow-lg sm:max-w-[620px]"
+                  />
+                </div>
               )}
 
               {tipoQuestao === "fechada" ? (
