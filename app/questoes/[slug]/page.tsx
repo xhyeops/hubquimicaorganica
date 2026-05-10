@@ -116,6 +116,27 @@ export default function QuestaoDetailPage() {
     })
   }, [tema])
 
+  function resetQuestionState() {
+    setSelectedAnswer(null)
+    setOpenAnswer("")
+    setShowResult(false)
+  }
+
+  function irParaAnterior() {
+    if (currentQuestion === 0) return
+    setCurrentQuestion((c) => c - 1)
+    resetQuestionState()
+  }
+
+  function irParaProxima() {
+    if (currentQuestion < questoes.length - 1) {
+      setCurrentQuestion((c) => c + 1)
+      resetQuestionState()
+    } else {
+      setFinished(true)
+    }
+  }
+
   if (loading) {
     return (
       <div className="min-h-screen bg-background">
@@ -198,22 +219,13 @@ export default function QuestaoDetailPage() {
 
     setShowResult(true)
 
-    if (tipoQuestao === "fechada") {
-      if (selectedAnswer === corretaIndex) {
-        setScore((s) => s + 1)
-      }
+    if (tipoQuestao === "fechada" && selectedAnswer === corretaIndex) {
+      setScore((s) => s + 1)
     }
   }
 
   function handleNext() {
-    if (currentQuestion < totalQuestions - 1) {
-      setCurrentQuestion((c) => c + 1)
-      setSelectedAnswer(null)
-      setOpenAnswer("")
-      setShowResult(false)
-    } else {
-      setFinished(true)
-    }
+    irParaProxima()
   }
 
   function handleRestart() {
@@ -322,6 +334,27 @@ export default function QuestaoDetailPage() {
                 </p>
               </div>
             </div>
+
+            <div className="mt-5">
+              <div className="flex items-center justify-between text-sm mb-2">
+                <span className="text-muted-foreground">
+                  Questão {currentQuestion + 1} de {totalQuestions}
+                </span>
+
+                <span className="font-medium text-sky-400">
+                  {score} acertos
+                </span>
+              </div>
+
+              <div className="h-2 bg-secondary rounded-full overflow-hidden">
+                <div
+                  className="h-full bg-gradient-to-r from-sky-500 to-cyan-500 transition-all duration-300"
+                  style={{
+                    width: `${((currentQuestion + 1) / totalQuestions) * 100}%`,
+                  }}
+                />
+              </div>
+            </div>
           </section>
 
           <section className="bg-card rounded-3xl border border-border overflow-hidden shadow-xl shadow-sky-500/5">
@@ -338,13 +371,11 @@ export default function QuestaoDetailPage() {
                         {children}
                       </p>
                     ),
-
                     strong: ({ children }) => (
                       <strong className="font-bold text-sky-400">
                         {children}
                       </strong>
                     ),
-
                     img: ({ src, alt }) => (
                       <img
                         src={src || ""}
@@ -484,34 +515,52 @@ export default function QuestaoDetailPage() {
               )}
             </div>
 
-            <div className="px-5 sm:px-8 py-4 border-t border-border bg-muted/30 flex justify-end gap-3">
-              {!showResult ? (
-                <Button
-                  onClick={handleConfirm}
-                  disabled={
-                    tipoQuestao === "fechada"
-                      ? selectedAnswer === null
-                      : !openAnswer.trim()
-                  }
-                  className="bg-sky-500 hover:bg-sky-600"
-                >
-                  Confirmar
-                </Button>
-              ) : (
-                <Button
-                  onClick={handleNext}
-                  className="bg-sky-500 hover:bg-sky-600"
-                >
-                  {currentQuestion < totalQuestions - 1 ? (
-                    <>
-                      Próxima
-                      <ChevronRight className="h-4 w-4 ml-1" />
-                    </>
-                  ) : (
-                    "Ver resultado"
-                  )}
-                </Button>
-              )}
+            <div className="px-5 sm:px-8 py-4 border-t border-border bg-muted/30 flex flex-col sm:flex-row sm:justify-between gap-3">
+              <Button
+                type="button"
+                variant="outline"
+                disabled={currentQuestion === 0}
+                onClick={irParaAnterior}
+              >
+                Voltar
+              </Button>
+
+              <div className="flex flex-col sm:flex-row justify-end gap-3">
+                {!showResult && (
+                  <Button type="button" variant="outline" onClick={irParaProxima}>
+                    Pular
+                    <ChevronRight className="h-4 w-4 ml-1" />
+                  </Button>
+                )}
+
+                {!showResult ? (
+                  <Button
+                    onClick={handleConfirm}
+                    disabled={
+                      tipoQuestao === "fechada"
+                        ? selectedAnswer === null
+                        : !openAnswer.trim()
+                    }
+                    className="bg-sky-500 hover:bg-sky-600"
+                  >
+                    Confirmar
+                  </Button>
+                ) : (
+                  <Button
+                    onClick={handleNext}
+                    className="bg-sky-500 hover:bg-sky-600"
+                  >
+                    {currentQuestion < totalQuestions - 1 ? (
+                      <>
+                        Próxima
+                        <ChevronRight className="h-4 w-4 ml-1" />
+                      </>
+                    ) : (
+                      "Ver resultado"
+                    )}
+                  </Button>
+                )}
+              </div>
             </div>
           </section>
         </div>
