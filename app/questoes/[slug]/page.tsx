@@ -20,6 +20,7 @@ import { useParams } from "next/navigation"
 import { cn } from "@/lib/utils"
 import { supabase } from "@/lib/supabase"
 import { trackEvent } from "@/lib/analytics"
+import { isAdminEmail } from "@/lib/admin"
 import ReactMarkdown from "react-markdown"
 
 type Tema = {
@@ -27,6 +28,7 @@ type Tema = {
   slug: string
   titulo: string
   descricao: string | null
+  visivel: boolean
 }
 
 type Questao = {
@@ -61,6 +63,7 @@ export default function QuestaoDetailPage() {
   const [questoes, setQuestoes] = useState<Questao[]>([])
 
   const [loading, setLoading] = useState(true)
+  const [acessoBloqueado, setAcessoBloqueado] = useState(false)
 
   const [currentQuestion, setCurrentQuestion] = useState(0)
 
@@ -105,6 +108,11 @@ export default function QuestaoDetailPage() {
       if (!slug) return
 
       setLoading(true)
+      setAcessoBloqueado(false)
+
+      const { data: userData } = await supabase.auth.getUser()
+      const email = userData.user?.email
+      const admin = !!email && isAdminEmail(email)
 
       const { data: temaData, error: temaError } =
         await supabase
@@ -119,8 +127,17 @@ export default function QuestaoDetailPage() {
           temaError
         )
 
+        setTema(null)
+        setQuestoes([])
         setLoading(false)
+        return
+      }
 
+      if (temaData.visivel === false && !admin) {
+        setTema(null)
+        setQuestoes([])
+        setAcessoBloqueado(true)
+        setLoading(false)
         return
       }
 
@@ -139,7 +156,6 @@ export default function QuestaoDetailPage() {
         )
 
         setLoading(false)
-
         return
       }
 
@@ -149,16 +165,14 @@ export default function QuestaoDetailPage() {
         return (a.ordem || 0) - (b.ordem || 0)
       })
 
-      setTema(temaData)
+      setTema({
+        ...temaData,
+        visivel: temaData.visivel !== false,
+      })
 
       setQuestoes(questoesOrdenadas)
 
-      /*
-       * Reinicia os cronômetros assim que
-       * os dados do quiz são carregados.
-       */
       quizStartTime.current = Date.now()
-
       questionStartTime.current = Date.now()
 
       setLoading(false)
@@ -574,6 +588,57 @@ export default function QuestaoDetailPage() {
               <p className="text-muted-foreground">
                 Carregando quiz...
               </p>
+            </div>
+          </div>
+        </main>
+      </div>
+    )
+  }
+
+  if (acessoBloqueado) {
+    return (
+      <div className="min-h-screen bg-background">
+        <Sidebar />
+
+        <main className="lg:pl-64 pt-14 lg:pt-0">
+          <div className="max-w-xl mx-auto px-4 sm:px-6 py-8 lg:py-16">
+            <Link
+              href="/questoes"
+              className="inline-flex items-center text-sm text-muted-foreground hover:text-sky-400 mb-8 group transition"
+            >
+              <ArrowLeft className="h-4 w-4 mr-2 group-hover:-translate-x-1 transition-transform" />
+              Voltar para Questões
+            </Link>
+
+            <div className="relative overflow-hidden rounded-3xl border border-border bg-card p-8 sm:p-10 text-center">
+              <div className="absolute -right-16 -top-16 h-40 w-40 rounded-full bg-sky-500/10 blur-3xl" />
+
+              <div className="relative">
+                <div className="mx-auto mb-5 flex h-16 w-16 items-center justify-center rounded-2xl bg-sky-500/10 text-sky-400">
+                  <Target className="h-7 w-7" />
+                </div>
+
+                <p className="mb-2 text-xs font-semibold uppercase tracking-[0.18em] text-sky-400">
+                  Em breve
+                </p>
+
+                <h1 className="text-2xl font-bold text-foreground">
+                  Este conteúdo ainda não foi liberado
+                </h1>
+
+                <p className="mx-auto mt-3 max-w-md text-sm leading-relaxed text-muted-foreground">
+                  Este conjunto de questões será disponibilizado
+                  posteriormente durante o semestre.
+                </p>
+
+                <Link
+                  href="/questoes"
+                  className="mt-6 inline-flex items-center gap-2 rounded-xl bg-sky-500 px-4 py-2.5 text-sm font-semibold text-white transition hover:bg-sky-600"
+                >
+                  Ver questões disponíveis
+                  <ChevronRight className="h-4 w-4" />
+                </Link>
+              </div>
             </div>
           </div>
         </main>
