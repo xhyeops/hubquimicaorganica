@@ -1,12 +1,12 @@
 import type { Metadata, Viewport } from "next"
-import { Manrope } from "next/font/google"
+import { Plus_Jakarta_Sans } from "next/font/google"
 import { Analytics } from "@vercel/analytics/next"
 import { ThemeProvider } from "@/components/theme-provider"
 import "./globals.css"
 
-const manrope = Manrope({
+const jakarta = Plus_Jakarta_Sans({
   subsets: ["latin"],
-  variable: "--font-manrope",
+  variable: "--font-jakarta",
   weight: ["400", "500", "600", "700", "800"],
   display: "swap",
 })
@@ -40,7 +40,7 @@ export default function RootLayout({
     <html
       lang="pt-BR"
       suppressHydrationWarning
-      className={manrope.variable}
+      className={jakarta.variable}
     >
       <body className="font-sans antialiased bg-background">
         <ThemeProvider
