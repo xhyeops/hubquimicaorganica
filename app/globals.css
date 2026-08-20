@@ -4,41 +4,35 @@
 @custom-variant dark (&:is(.dark *));
 
 /* ========================= */
-/* 🌤️ LIGHT MODE (CORRIGIDO) */
+/* 🌤️ LIGHT MODE */
 /* ========================= */
 
 :root {
-  /* fundo geral mais suave (ANTES: branco demais) */
   --background: oklch(0.96 0.01 250);
 
   --foreground: oklch(0.18 0.02 245);
 
-  /* cards com leve destaque */
   --card: oklch(0.99 0.005 250);
   --card-foreground: oklch(0.18 0.02 245);
 
   --popover: oklch(0.99 0.005 250);
   --popover-foreground: oklch(0.18 0.02 245);
 
-  /* azul principal */
   --primary: oklch(0.62 0.17 240);
   --primary-foreground: oklch(1 0 0);
 
-  /* cinza azulado */
   --secondary: oklch(0.93 0.01 250);
   --secondary-foreground: oklch(0.3 0.02 245);
 
   --muted: oklch(0.93 0.01 250);
   --muted-foreground: oklch(0.45 0.02 245);
 
-  /* ciano destaque */
   --accent: oklch(0.68 0.15 195);
   --accent-foreground: oklch(0.1 0.02 245);
 
   --destructive: oklch(0.55 0.2 25);
   --destructive-foreground: oklch(1 0 0);
 
-  /* bordas mais visíveis */
   --border: oklch(0.88 0.01 250);
   --input: oklch(0.9 0.01 250);
 
@@ -52,7 +46,6 @@
 
   --radius: 0.7rem;
 
-  /* sidebar menos branca */
   --sidebar: oklch(0.94 0.01 250);
   --sidebar-foreground: oklch(0.2 0.02 245);
 
@@ -67,7 +60,7 @@
 }
 
 /* ========================= */
-/* 🌙 DARK MODE (MANTIDO) */
+/* 🌙 DARK MODE */
 /* ========================= */
 
 .dark {
@@ -124,25 +117,41 @@
 /* ========================= */
 
 @theme inline {
-  --font-sans: var(--font-sans), system-ui, sans-serif;
-  --font-mono: 'Geist Mono', monospace;
+  /*
+   * Fonte principal do projeto.
+   *
+   * --font-manrope vem do next/font
+   * configurado no app/layout.tsx.
+   */
+  --font-sans: var(--font-manrope), system-ui, sans-serif;
+
+  --font-mono: ui-monospace, SFMono-Regular, Menlo, Monaco,
+    Consolas, "Liberation Mono", "Courier New", monospace;
 
   --color-background: var(--background);
   --color-foreground: var(--foreground);
+
   --color-card: var(--card);
   --color-card-foreground: var(--card-foreground);
+
   --color-popover: var(--popover);
   --color-popover-foreground: var(--popover-foreground);
+
   --color-primary: var(--primary);
   --color-primary-foreground: var(--primary-foreground);
+
   --color-secondary: var(--secondary);
   --color-secondary-foreground: var(--secondary-foreground);
+
   --color-muted: var(--muted);
   --color-muted-foreground: var(--muted-foreground);
+
   --color-accent: var(--accent);
   --color-accent-foreground: var(--accent-foreground);
+
   --color-destructive: var(--destructive);
   --color-destructive-foreground: var(--destructive-foreground);
+
   --color-border: var(--border);
   --color-input: var(--input);
   --color-ring: var(--ring);
@@ -160,16 +169,23 @@
 
   --color-sidebar: var(--sidebar);
   --color-sidebar-foreground: var(--sidebar-foreground);
+
   --color-sidebar-primary: var(--sidebar-primary);
-  --color-sidebar-primary-foreground: var(--sidebar-primary-foreground);
+  --color-sidebar-primary-foreground: var(
+    --sidebar-primary-foreground
+  );
+
   --color-sidebar-accent: var(--sidebar-accent);
-  --color-sidebar-accent-foreground: var(--sidebar-accent-foreground);
+  --color-sidebar-accent-foreground: var(
+    --sidebar-accent-foreground
+  );
+
   --color-sidebar-border: var(--sidebar-border);
   --color-sidebar-ring: var(--sidebar-ring);
 }
 
 /* ========================= */
-/* BASE + FUNDO SUAVE */
+/* BASE */
 /* ========================= */
 
 @layer base {
@@ -177,14 +193,49 @@
     @apply border-border outline-ring/50;
   }
 
+  html {
+    font-family: var(--font-manrope), system-ui, sans-serif;
+    text-rendering: optimizeLegibility;
+  }
+
   body {
     @apply bg-background text-foreground;
+
     min-height: 100vh;
     position: relative;
     overflow-x: hidden;
+
+    font-family: var(--font-manrope), system-ui, sans-serif;
+
+    /*
+     * Ajuda especialmente em telas Windows,
+     * deixando a Manrope um pouco mais suave.
+     */
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
   }
 
-  /* 🔥 FUNDO MELHORADO (bem leve, sem poluir) */
+  /*
+   * Títulos recebem um espaçamento um pouco
+   * mais fechado, que combina bastante com Manrope.
+   */
+  h1,
+  h2,
+  h3,
+  h4,
+  h5,
+  h6 {
+    letter-spacing: -0.025em;
+  }
+
+  button,
+  input,
+  textarea,
+  select {
+    font: inherit;
+  }
+
+  /* FUNDO SUAVE */
   body::before {
     content: "";
     position: fixed;
@@ -193,9 +244,63 @@
     pointer-events: none;
 
     background:
-      radial-gradient(circle at 20% 10%, rgba(56, 189, 248, 0.06), transparent 30%),
-      radial-gradient(circle at 80% 15%, rgba(34, 211, 238, 0.05), transparent 28%);
+      radial-gradient(
+        circle at 20% 10%,
+        rgba(56, 189, 248, 0.06),
+        transparent 30%
+      ),
+      radial-gradient(
+        circle at 80% 15%,
+        rgba(34, 211, 238, 0.05),
+        transparent 28%
+      );
   }
+}
+
+/* ========================= */
+/* SELEÇÃO DE TEXTO */
+/* ========================= */
+
+::selection {
+  background: rgba(56, 189, 248, 0.22);
+}
+
+/* ========================= */
+/* SCROLLBAR */
+/* ========================= */
+
+* {
+  scrollbar-width: thin;
+  scrollbar-color:
+    color-mix(in srgb, var(--foreground) 18%, transparent)
+    transparent;
+}
+
+::-webkit-scrollbar {
+  width: 8px;
+  height: 8px;
+}
+
+::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+::-webkit-scrollbar-thumb {
+  background: color-mix(
+    in srgb,
+    var(--foreground) 16%,
+    transparent
+  );
+
+  border-radius: 999px;
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background: color-mix(
+    in srgb,
+    var(--foreground) 25%,
+    transparent
+  );
 }
 
 /* ========================= */
@@ -203,8 +308,13 @@
 /* ========================= */
 
 @keyframes atomSpin {
-  from { transform: rotate(0deg); }
-  to { transform: rotate(360deg); }
+  from {
+    transform: rotate(0deg);
+  }
+
+  to {
+    transform: rotate(360deg);
+  }
 }
 
 .chem-atom-spin svg {
@@ -217,8 +327,22 @@
     0 0 38px rgba(34, 211, 238, 0.1);
 }
 
-/* flashcards */
-.perspective { perspective: 1000px; }
-.preserve-3d { transform-style: preserve-3d; }
-.backface-hidden { backface-visibility: hidden; }
-.rotate-y-180 { transform: rotateY(180deg); }
+/* ========================= */
+/* FLASHCARDS */
+/* ========================= */
+
+.perspective {
+  perspective: 1000px;
+}
+
+.preserve-3d {
+  transform-style: preserve-3d;
+}
+
+.backface-hidden {
+  backface-visibility: hidden;
+}
+
+.rotate-y-180 {
+  transform: rotateY(180deg);
+}
