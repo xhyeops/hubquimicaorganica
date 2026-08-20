@@ -44,13 +44,20 @@ export default function HomePage() {
     })
 
     async function fetchData() {
-      const [resumosCount, flashcardsCount, questoesCount] = await Promise.all([
-        supabase.from("resumos").select("*", { count: "exact", head: true }),
-        supabase.from("flashcards").select("*", { count: "exact", head: true }),
-        supabase
-          .from("temas_questoes")
-          .select("*", { count: "exact", head: true }),
-      ])
+      const [resumosCount, flashcardsCount, questoesCount] =
+        await Promise.all([
+          supabase
+            .from("resumos")
+            .select("*", { count: "exact", head: true }),
+
+          supabase
+            .from("flashcards")
+            .select("*", { count: "exact", head: true }),
+
+          supabase
+            .from("temas_questoes")
+            .select("*", { count: "exact", head: true }),
+        ])
 
       setCounts({
         resumos: resumosCount.count || 0,
@@ -112,7 +119,8 @@ export default function HomePage() {
 
       feedItems.sort(
         (a, b) =>
-          new Date(b.criado_em).getTime() - new Date(a.criado_em).getTime()
+          new Date(b.criado_em).getTime() -
+          new Date(a.criado_em).getTime()
       )
 
       setFeed(feedItems.slice(0, 8))
@@ -134,189 +142,398 @@ export default function HomePage() {
       <Sidebar />
 
       <main className="lg:pl-64 pt-14 lg:pt-0">
-        <div className="max-w-5xl mx-auto px-4 sm:px-6 py-5 sm:py-8 lg:py-16">
-          <section className="mb-7 sm:mb-10 rounded-[1.5rem] sm:rounded-[2rem] border border-sky-500/10 bg-gradient-to-br from-sky-500/10 via-card to-cyan-500/5 p-5 sm:p-8 shadow-lg sm:shadow-xl shadow-sky-500/5">
-            <div className="inline-flex items-center gap-2 px-3 py-1 mb-4 sm:mb-5 rounded-full bg-sky-500/10 text-sky-400 text-xs sm:text-sm font-medium">
-              <Sparkles className="h-3.5 w-3.5" />
-              Hub de Estudos
-            </div>
+        <div className="max-w-6xl mx-auto px-4 sm:px-6 py-6 sm:py-8 lg:py-10">
 
-            <h1 className="text-2xl sm:text-4xl lg:text-5xl font-bold tracking-tight text-foreground mb-3 sm:mb-4 leading-tight">
-              Monitoria de{" "}
-              <span className="bg-gradient-to-r from-sky-400 to-cyan-400 bg-clip-text text-transparent">
-                Química Orgânica
-              </span>
-            </h1>
+          {/* CABEÇALHO */}
+          <section className="mb-6">
+            <div className="flex flex-col sm:flex-row sm:items-end sm:justify-between gap-3">
+              <div>
+                <p className="text-sm font-medium text-sky-400 mb-1">
+                  Hub de Estudos
+                </p>
 
-            <p className="text-sm sm:text-lg text-muted-foreground max-w-2xl leading-relaxed">
-              Acompanhe as novidades da monitoria e acesse os materiais pelo
-              menu lateral.
-            </p>
+                <h1 className="text-2xl sm:text-3xl lg:text-4xl font-bold tracking-tight text-foreground">
+                  Bom dia! 👋
+                </h1>
 
-            <div className="flex flex-col sm:flex-row gap-3 mt-5 sm:mt-6">
-              <Link
-                href="/flashcards"
-                className="inline-flex items-center justify-center gap-2 rounded-xl bg-sky-500 px-4 py-2.5 text-sm font-medium text-white transition hover:-translate-y-0.5 hover:bg-sky-600 hover:shadow-lg hover:shadow-sky-500/20"
-              >
-                <Play className="h-4 w-4" />
-                Começar pelos flashcards
-              </Link>
+                <p className="mt-1 text-sm sm:text-base text-muted-foreground">
+                  Pronto para estudar Química Orgânica?
+                </p>
+              </div>
 
-              <Link
-                href="/resumos"
-                className="inline-flex items-center justify-center gap-2 rounded-xl border border-sky-500/20 bg-background/40 px-4 py-2.5 text-sm font-medium text-foreground transition hover:-translate-y-0.5 hover:border-sky-500/50 hover:text-sky-400"
-              >
-                Ver resumos
-                <ArrowRight className="h-4 w-4" />
-              </Link>
+              <div className="hidden sm:flex items-center gap-2 text-xs text-muted-foreground">
+                <Sparkles className="h-4 w-4 text-sky-400" />
+                Monitoria de Química Orgânica
+              </div>
             </div>
           </section>
 
-          <section className="mb-7 sm:mb-10">
-            <div className="flex items-end justify-between mb-3 sm:mb-4">
-              <div>
-                <h2 className="text-xl sm:text-2xl font-bold text-foreground">
-                  Novas adições
+          {/* DESTAQUE */}
+          <section className="mb-7">
+            <div className="relative overflow-hidden rounded-2xl border border-sky-500/15 bg-gradient-to-br from-sky-500/10 via-card to-cyan-500/5 p-5 sm:p-7">
+
+              <div className="absolute -right-20 -top-20 h-48 w-48 rounded-full bg-sky-500/10 blur-3xl" />
+
+              <div className="absolute -bottom-20 right-20 h-40 w-40 rounded-full bg-cyan-500/10 blur-3xl" />
+
+              <div className="relative max-w-3xl">
+
+                <div className="inline-flex items-center gap-2 rounded-full bg-sky-500/10 px-3 py-1 text-xs font-medium text-sky-400 mb-4">
+                  <Sparkles className="h-3.5 w-3.5" />
+                  Comece por aqui
+                </div>
+
+                <h2 className="text-xl sm:text-2xl lg:text-3xl font-bold text-foreground">
+                  Continue seus estudos de{" "}
+                  <span className="text-sky-400">
+                    Química Orgânica
+                  </span>
                 </h2>
+
+                <p className="mt-2 max-w-2xl text-sm text-muted-foreground leading-relaxed">
+                  Revise os conteúdos da monitoria, pratique com flashcards
+                  ou teste seus conhecimentos com questões.
+                </p>
+
+                <div className="flex flex-col sm:flex-row gap-2.5 mt-5">
+
+                  <Link
+                    href="/flashcards"
+                    className="inline-flex items-center justify-center gap-2 rounded-xl bg-sky-500 px-4 py-2.5 text-sm font-semibold text-white transition hover:bg-sky-600 hover:-translate-y-0.5 hover:shadow-lg hover:shadow-sky-500/20"
+                  >
+                    <Play className="h-4 w-4" />
+                    Começar a estudar
+                  </Link>
+
+                  <Link
+                    href="/resumos"
+                    className="inline-flex items-center justify-center gap-2 rounded-xl border border-border bg-background/40 px-4 py-2.5 text-sm font-medium text-foreground transition hover:border-sky-500/40 hover:text-sky-400"
+                  >
+                    Ver conteúdos
+                    <ArrowRight className="h-4 w-4" />
+                  </Link>
+
+                </div>
+              </div>
+            </div>
+          </section>
+
+          {/* ACESSO RÁPIDO */}
+          <section className="mb-7">
+
+            <div className="flex items-end justify-between mb-3">
+              <div>
+                <h2 className="text-lg sm:text-xl font-bold text-foreground">
+                  Acesso rápido
+                </h2>
+
                 <p className="text-xs sm:text-sm text-muted-foreground">
-                  Últimos conteúdos adicionados ao hub
+                  Escolha como você quer estudar
+                </p>
+              </div>
+            </div>
+
+            <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+
+              {/* RESUMOS */}
+              <Link
+                href="/resumos"
+                className="group rounded-2xl border border-border bg-card p-4 sm:p-5 transition-all duration-300 hover:-translate-y-1 hover:border-sky-500/40 hover:shadow-lg hover:shadow-sky-500/10"
+              >
+                <div className="flex items-center justify-between mb-5">
+
+                  <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-sky-500/10 text-sky-400 transition group-hover:scale-110 group-hover:bg-sky-500/20">
+                    <FileText className="h-5 w-5" />
+                  </div>
+
+                  <ArrowRight className="h-4 w-4 text-muted-foreground transition group-hover:translate-x-1 group-hover:text-sky-400" />
+
+                </div>
+
+                <h3 className="font-semibold text-foreground group-hover:text-sky-400 transition">
+                  Resumos
+                </h3>
+
+                <p className="mt-1 text-xs text-muted-foreground">
+                  Revise os principais conteúdos
+                </p>
+
+                <div className="mt-4 text-xs text-sky-400">
+                  {counts.resumos} conteúdos disponíveis
+                </div>
+              </Link>
+
+              {/* FLASHCARDS */}
+              <Link
+                href="/flashcards"
+                className="group rounded-2xl border border-border bg-card p-4 sm:p-5 transition-all duration-300 hover:-translate-y-1 hover:border-sky-500/40 hover:shadow-lg hover:shadow-sky-500/10"
+              >
+                <div className="flex items-center justify-between mb-5">
+
+                  <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-sky-500/10 text-sky-400 transition group-hover:scale-110 group-hover:bg-sky-500/20">
+                    <Layers className="h-5 w-5" />
+                  </div>
+
+                  <ArrowRight className="h-4 w-4 text-muted-foreground transition group-hover:translate-x-1 group-hover:text-sky-400" />
+
+                </div>
+
+                <h3 className="font-semibold text-foreground group-hover:text-sky-400 transition">
+                  Flashcards
+                </h3>
+
+                <p className="mt-1 text-xs text-muted-foreground">
+                  Faça uma revisão rápida
+                </p>
+
+                <div className="mt-4 text-xs text-sky-400">
+                  {counts.flashcards} cards disponíveis
+                </div>
+              </Link>
+
+              {/* QUESTÕES */}
+              <Link
+                href="/questoes"
+                className="group rounded-2xl border border-border bg-card p-4 sm:p-5 transition-all duration-300 hover:-translate-y-1 hover:border-sky-500/40 hover:shadow-lg hover:shadow-sky-500/10"
+              >
+                <div className="flex items-center justify-between mb-5">
+
+                  <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-sky-500/10 text-sky-400 transition group-hover:scale-110 group-hover:bg-sky-500/20">
+                    <HelpCircle className="h-5 w-5" />
+                  </div>
+
+                  <ArrowRight className="h-4 w-4 text-muted-foreground transition group-hover:translate-x-1 group-hover:text-sky-400" />
+
+                </div>
+
+                <h3 className="font-semibold text-foreground group-hover:text-sky-400 transition">
+                  Questões
+                </h3>
+
+                <p className="mt-1 text-xs text-muted-foreground">
+                  Teste seus conhecimentos
+                </p>
+
+                <div className="mt-4 text-xs text-sky-400">
+                  {counts.questoes} temas disponíveis
+                </div>
+              </Link>
+
+            </div>
+          </section>
+
+          {/* CONTEÚDOS RECENTES */}
+          <section className="mb-7">
+
+            <div className="flex items-end justify-between mb-3">
+
+              <div>
+                <h2 className="text-lg sm:text-xl font-bold text-foreground">
+                  Conteúdos recentes
+                </h2>
+
+                <p className="text-xs sm:text-sm text-muted-foreground">
+                  Veja o que foi adicionado recentemente
                 </p>
               </div>
 
               <span className="hidden sm:inline-flex rounded-full bg-sky-500/10 px-3 py-1 text-xs font-medium text-sky-400">
-                Atualizações recentes
+                Atualizações
               </span>
+
             </div>
 
             {feed.length === 0 ? (
-              <div className="rounded-2xl border border-border bg-card p-6 sm:p-8 text-center">
-                <p className="text-sm text-muted-foreground">
-                  Nenhuma atualização cadastrada ainda.
+
+              <div className="rounded-2xl border border-border bg-card p-7 text-center">
+
+                <div className="mx-auto mb-3 flex h-10 w-10 items-center justify-center rounded-xl bg-sky-500/10 text-sky-400">
+                  <Sparkles className="h-5 w-5" />
+                </div>
+
+                <p className="text-sm font-medium text-foreground">
+                  Nenhum conteúdo novo ainda
                 </p>
+
+                <p className="mt-1 text-xs text-muted-foreground">
+                  Os novos materiais aparecerão aqui.
+                </p>
+
               </div>
+
             ) : (
-              <div className="space-y-3 sm:space-y-4">
+
+              <div className="overflow-hidden rounded-2xl border border-border bg-card">
+
                 {feed.map((item, index) => {
+
                   const Icon = item.icon
 
                   return (
                     <Link
                       key={`${item.tipo}-${item.id}`}
                       href={item.href}
-                      className="group relative flex items-center justify-between gap-3 sm:gap-4 rounded-2xl border border-border bg-card p-4 sm:p-5 transition-all duration-300 hover:-translate-y-1 hover:scale-[1.01] hover:border-sky-500/40 hover:shadow-xl hover:shadow-sky-500/10"
+                      className={`group flex items-center gap-3 sm:gap-4 p-4 transition-colors hover:bg-sky-500/[0.03] ${
+                        index !== feed.length - 1
+                          ? "border-b border-border"
+                          : ""
+                      }`}
                     >
-                      <div className="absolute left-0 top-5 bottom-5 w-1 rounded-r-full bg-sky-500/0 transition group-hover:bg-sky-400" />
 
-                      <div className="flex items-start gap-3 sm:gap-4">
-                        <div className="flex h-10 w-10 sm:h-12 sm:w-12 shrink-0 items-center justify-center rounded-xl sm:rounded-2xl bg-sky-500/10 text-sky-400 transition group-hover:scale-110 group-hover:bg-sky-500/20">
-                          <Icon className="h-5 w-5" />
-                        </div>
-
-                        <div>
-                          <div className="mb-2 flex flex-wrap items-center gap-2">
-                            {index === 0 && (
-                              <span className="rounded-full bg-cyan-500/10 px-2 py-0.5 text-[11px] sm:text-xs font-medium text-cyan-400">
-                                Novo
-                              </span>
-                            )}
-
-                            <span className="rounded-full bg-sky-500/10 px-2 py-0.5 text-[11px] sm:text-xs font-medium text-sky-400">
-                              {item.tipo}
-                            </span>
-
-                            {item.categoria && (
-                              <span className="line-clamp-1 text-[11px] sm:text-xs text-muted-foreground">
-                                {item.categoria}
-                              </span>
-                            )}
-                          </div>
-
-                          <h3 className="text-sm sm:text-base font-semibold text-foreground line-clamp-2 group-hover:text-sky-400 transition">
-                            {item.titulo}
-                          </h3>
-
-                          <div className="mt-2 flex items-center gap-1 text-[11px] sm:text-xs text-muted-foreground">
-                            <Clock className="h-3.5 w-3.5" />
-                            {formatarData(item.criado_em)}
-                          </div>
-                        </div>
+                      <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-sky-500/10 text-sky-400 transition group-hover:bg-sky-500/20">
+                        <Icon className="h-5 w-5" />
                       </div>
 
-                      <ArrowRight className="h-4 w-4 sm:h-5 sm:w-5 shrink-0 text-muted-foreground transition group-hover:translate-x-1 group-hover:text-sky-400" />
+                      <div className="min-w-0 flex-1">
+
+                        <div className="flex flex-wrap items-center gap-2 mb-1">
+
+                          {index === 0 && (
+                            <span className="rounded-full bg-cyan-500/10 px-2 py-0.5 text-[10px] font-semibold text-cyan-400">
+                              NOVO
+                            </span>
+                          )}
+
+                          <span className="text-[10px] font-medium uppercase tracking-wide text-sky-400">
+                            {item.tipo}
+                          </span>
+
+                          {item.categoria && (
+                            <>
+                              <span className="text-muted-foreground">
+                                ·
+                              </span>
+
+                              <span className="text-[10px] text-muted-foreground truncate max-w-[180px]">
+                                {item.categoria}
+                              </span>
+                            </>
+                          )}
+
+                        </div>
+
+                        <h3 className="text-sm font-semibold text-foreground truncate group-hover:text-sky-400 transition">
+                          {item.titulo}
+                        </h3>
+
+                        <div className="mt-1 flex items-center gap-1 text-[10px] text-muted-foreground">
+                          <Clock className="h-3 w-3" />
+                          {formatarData(item.criado_em)}
+                        </div>
+
+                      </div>
+
+                      <ArrowRight className="h-4 w-4 shrink-0 text-muted-foreground transition group-hover:translate-x-1 group-hover:text-sky-400" />
+
                     </Link>
                   )
                 })}
+
               </div>
             )}
           </section>
 
-          <section className="grid grid-cols-1 sm:grid-cols-3 gap-3 sm:gap-4 mb-7 sm:mb-10">
-            {[
-              {
-                label: "Resumos",
-                value: counts.resumos,
-                href: "/resumos",
-                icon: FileText,
-              },
-              {
-                label: "Flashcards",
-                value: counts.flashcards,
-                href: "/flashcards",
-                icon: Layers,
-              },
-              {
-                label: "Temas de questões",
-                value: counts.questoes,
-                href: "/questoes",
-                icon: HelpCircle,
-              },
-            ].map((item) => {
-              const Icon = item.icon
+          {/* VISÃO GERAL */}
+          <section className="grid grid-cols-1 lg:grid-cols-[1fr_320px] gap-4">
 
-              return (
-                <Link
-                  key={item.label}
-                  href={item.href}
-                  className="group rounded-2xl bg-card border border-border p-4 sm:p-5 transition-all duration-300 hover:-translate-y-1 hover:border-sky-500/40 hover:shadow-lg hover:shadow-sky-500/10"
-                >
-                  <div className="flex items-center justify-between">
-                    <div>
-                      <div className="text-2xl sm:text-3xl font-bold text-sky-400">
-                        {item.value}
-                      </div>
-                      <div className="text-sm text-muted-foreground">
-                        {item.label}
-                      </div>
-                    </div>
+            {/* ESTATÍSTICAS */}
+            <div className="rounded-2xl border border-border bg-card p-5">
 
-                    <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-sky-500/10 text-sky-400 transition group-hover:scale-110 group-hover:bg-sky-500/20">
-                      <Icon className="h-5 w-5" />
-                    </div>
+              <div className="flex items-center gap-2 mb-5">
+
+                <Layers className="h-4 w-4 text-sky-400" />
+
+                <div>
+                  <h2 className="text-sm font-semibold text-foreground">
+                    Seu hub de estudos
+                  </h2>
+
+                  <p className="text-xs text-muted-foreground">
+                    Conteúdos disponíveis atualmente
+                  </p>
+                </div>
+
+              </div>
+
+              <div className="grid grid-cols-3 gap-3">
+
+                <div className="rounded-xl border border-border bg-background/40 p-3">
+                  <div className="text-xl font-bold text-sky-400">
+                    {counts.resumos}
                   </div>
-                </Link>
-              )
-            })}
-          </section>
 
-          <section className="rounded-2xl bg-card border border-border p-4 sm:p-5 transition hover:border-sky-500/20">
-            <div className="flex items-center gap-2 mb-3 text-sky-400">
-              <Users className="h-4 w-4" />
-              <span className="text-sm font-medium">Equipe da monitoria</span>
+                  <div className="text-[11px] text-muted-foreground mt-0.5">
+                    Resumos
+                  </div>
+                </div>
+
+                <div className="rounded-xl border border-border bg-background/40 p-3">
+                  <div className="text-xl font-bold text-sky-400">
+                    {counts.flashcards}
+                  </div>
+
+                  <div className="text-[11px] text-muted-foreground mt-0.5">
+                    Flashcards
+                  </div>
+                </div>
+
+                <div className="rounded-xl border border-border bg-background/40 p-3">
+                  <div className="text-xl font-bold text-sky-400">
+                    {counts.questoes}
+                  </div>
+
+                  <div className="text-[11px] text-muted-foreground mt-0.5">
+                    Questões
+                  </div>
+                </div>
+
+              </div>
             </div>
 
-            <p className="text-sm text-muted-foreground">
-              Monitores:{" "}
-              <span className="text-sky-400 font-semibold">André Luiz</span> e{" "}
-              <span className="text-sky-400 font-semibold">Ana Georgia</span>
-            </p>
+            {/* EQUIPE */}
+            <div className="rounded-2xl border border-border bg-card p-5">
 
-            <p className="text-sm text-muted-foreground mt-1">
-              Professor:{" "}
-              <span className="text-foreground font-medium">
-                Felipe Ramon
-              </span>
-            </p>
+              <div className="flex items-center gap-2 mb-4 text-sky-400">
+                <Users className="h-4 w-4" />
+
+                <span className="text-sm font-semibold">
+                  Equipe da monitoria
+                </span>
+              </div>
+
+              <div className="space-y-3">
+
+                <div>
+                  <p className="text-[11px] text-muted-foreground">
+                    Monitores
+                  </p>
+
+                  <p className="text-sm font-medium text-foreground mt-0.5">
+                    <span className="text-sky-400">
+                      André Luiz
+                    </span>{" "}
+                    e{" "}
+                    <span className="text-sky-400">
+                      Ana Georgia
+                    </span>
+                  </p>
+                </div>
+
+                <div>
+                  <p className="text-[11px] text-muted-foreground">
+                    Professor
+                  </p>
+
+                  <p className="text-sm font-medium text-foreground mt-0.5">
+                    Felipe Ramon
+                  </p>
+                </div>
+
+              </div>
+            </div>
+
           </section>
+
         </div>
       </main>
     </div>
