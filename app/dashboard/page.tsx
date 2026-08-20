@@ -1,12 +1,39 @@
 "use client"
 
-import { useEffect, useMemo, useState } from "react"
+import {
+  useCallback,
+  useEffect,
+  useMemo,
+  useState,
+} from "react"
 import { useRouter } from "next/navigation"
-import { BarChart3, Clock, Eye, FileText, HelpCircle, Layers, Monitor, Smartphone, Users } from "lucide-react"
+import {
+  Activity,
+  BarChart3,
+  BookOpen,
+  CheckCircle2,
+  ChevronDown,
+  Clock,
+  Eye,
+  FileText,
+  Filter,
+  HelpCircle,
+  Layers,
+  Monitor,
+  MousePointerClick,
+  RefreshCw,
+  Smartphone,
+  Target,
+  TrendingUp,
+  Users,
+  XCircle,
+} from "lucide-react"
 
 import { Sidebar } from "@/components/sidebar"
 import { supabase } from "@/lib/supabase"
 import { isAdminEmail } from "@/lib/admin"
+
+type AnalyticsMetadata = Record<string, any> | null
 
 type AnalyticsEvent = {
   id: string
@@ -23,20 +50,128 @@ type AnalyticsEvent = {
   os: string | null
   referrer: string | null
   duration_seconds: number | null
+
+  content_id: string | null
+  content_type: string | null
+  success: boolean | null
+  value: number | null
+  metadata: AnalyticsMetadata
+}
+
+type Periodo =
+  | "hoje"
+  | "7d"
+  | "30d"
+  | "90d"
+  | "todos"
+  | "personalizado"
+
+type ItemContagem = {
+  nome: string
+  total: number
+}
+
+type QuestaoDificil = {
+  id: string
+  titulo: string
+  tema: string
+  respostas: number
+  acertos: number
+  erros: number
+  taxa: number
 }
 
 export default function DashboardPage() {
   const router = useRouter()
 
   const [events, setEvents] = useState<AnalyticsEvent[]>([])
+
   const [loading, setLoading] = useState(true)
   const [erro, setErro] = useState("")
 
-  useEffect(() => {
-    async function carregarDashboard() {
-      setLoading(true)
+  const [periodo, setPeriodo] =
+    useState<Periodo>("30d")
 
-      const { data: userData } = await supabase.auth.getUser()
+  const [dataInicio, setDataInicio] = useState("")
+  const [dataFim, setDataFim] = useState("")
+
+  const [secao, setSecao] = useState("todos")
+  const [dispositivo, setDispositivo] =
+    useState("todos")
+
+  const [tipoEvento, setTipoEvento] =
+    useState("todos")
+
+  /*
+   * ============================================================
+   * DATAS
+   * ============================================================
+   */
+
+  function obterDataInicial(periodoSelecionado: Periodo) {
+    const agora = new Date()
+
+    if (periodoSelecionado === "todos") {
+      return null
+    }
+
+    if (periodoSelecionado === "personalizado") {
+      if (!dataInicio) return null
+
+      const data = new Date(`${dataInicio}T00:00:00`)
+
+      return data.toISOString()
+    }
+
+    if (periodoSelecionado === "hoje") {
+      const data = new Date()
+
+      data.setHours(0, 0, 0, 0)
+
+      return data.toISOString()
+    }
+
+    const dias =
+      periodoSelecionado === "7d"
+        ? 7
+        : periodoSelecionado === "30d"
+          ? 30
+          : 90
+
+    agora.setDate(agora.getDate() - dias)
+
+    agora.setHours(0, 0, 0, 0)
+
+    return agora.toISOString()
+  }
+
+  function obterDataFinal(periodoSelecionado: Periodo) {
+    if (
+      periodoSelecionado !== "personalizado" ||
+      !dataFim
+    ) {
+      return null
+    }
+
+    const data = new Date(`${dataFim}T23:59:59.999`)
+
+    return data.toISOString()
+  }
+
+  /*
+   * ============================================================
+   * CARREGAMENTO DOS DADOS
+   * ============================================================
+   */
+
+  const carregarDashboard = useCallback(async () => {
+    setLoading(true)
+    setErro("")
+
+    try {
+      const { data: userData } =
+        await supabase.auth.getUser()
+
       const email = userData.user?.email
 
       if (!email || !isAdminEmail(email)) {
@@ -44,109 +179,787 @@ export default function DashboardPage() {
         return
       }
 
-      const { data, error } = await supabase
-        .from("site_analytics")
-        .select("*")
-        .order("created_at", { ascending: false })
-        .limit(1000)
+      const inicio = obterDataInicial(periodo)
+      const fim = obterDataFinal(periodo)
 
-      if (error) {
-        console.error(error)
-        setErro("Erro ao carregar analytics.")
-        setLoading(false)
-        return
+      /*
+       * O Supabase normalmente retorna no máximo
+       * 1000 registros por consulta.
+       *
+       * Aqui buscamos em lotes para não limitar
+       * o dashboard aos últimos 1000 eventos.
+       */
+      const tamanhoLote = 1000
+
+      let inicioLote = 0
+      let continuar = true
+
+      const todosEventos: AnalyticsEvent[] = []
+
+      while (continuar) {
+        let query = supabase
+          .from("site_analytics")
+          .select("*")
+          .order("created_at", {
+            ascending: false,
+          })
+          .range(
+            inicioLote,
+            inicioLote + tamanhoLote - 1
+          )
+
+        if (inicio) {
+          query = query.gte("created_at", inicio)
+        }
+
+        if (fim) {
+          query = query.lte("created_at", fim)
+        }
+
+        const { data, error } = await query
+
+        if (error) {
+          throw error
+        }
+
+        const lote =
+          (data || []) as AnalyticsEvent[]
+
+        todosEventos.push(...lote)
+
+        if (lote.length < tamanhoLote) {
+          continuar = false
+        } else {
+          inicioLote += tamanhoLote
+        }
       }
 
-      setEvents(data || [])
+      setEvents(todosEventos)
+    } catch (error) {
+      console.error(error)
+
+      setErro(
+        "Não foi possível carregar os dados de analytics."
+      )
+    } finally {
       setLoading(false)
+    }
+  }, [
+    router,
+    periodo,
+    dataInicio,
+    dataFim,
+  ])
+
+  useEffect(() => {
+    if (
+      periodo === "personalizado" &&
+      (!dataInicio || !dataFim)
+    ) {
+      return
     }
 
     carregarDashboard()
-  }, [router])
+  }, [carregarDashboard])
+
+  /*
+   * ============================================================
+   * OPÇÕES DOS FILTROS
+   * ============================================================
+   */
+
+  const tiposDeEvento = useMemo(() => {
+    return Array.from(
+      new Set(
+        events
+          .map((evento) => evento.event_type)
+          .filter(Boolean)
+      )
+    ).sort()
+  }, [events])
+
+  /*
+   * ============================================================
+   * FILTROS LOCAIS
+   * ============================================================
+   */
+
+  const eventosFiltrados = useMemo(() => {
+    return events.filter((evento) => {
+      if (
+        secao !== "todos" &&
+        evento.section !== secao
+      ) {
+        return false
+      }
+
+      if (
+        dispositivo !== "todos" &&
+        evento.device_type !== dispositivo
+      ) {
+        return false
+      }
+
+      if (
+        tipoEvento !== "todos" &&
+        evento.event_type !== tipoEvento
+      ) {
+        return false
+      }
+
+      return true
+    })
+  }, [
+    events,
+    secao,
+    dispositivo,
+    tipoEvento,
+  ])
+
+  /*
+   * ============================================================
+   * CÁLCULOS
+   * ============================================================
+   */
 
   const dados = useMemo(() => {
-    const totalAcessos = events.length
+    /*
+     * Eventos que representam alguma visualização
+     * real de página ou conteúdo.
+     *
+     * Assim um clique em "próximo flashcard",
+     * por exemplo, não é contado como uma nova
+     * visita ao site.
+     */
+    const eventosDeAcesso =
+      eventosFiltrados.filter((evento) =>
+        [
+          "page_view",
+          "resumo_view",
+          "flashcards_view",
+          "quiz_view",
+          "questoes_view",
+        ].includes(evento.event_type)
+      )
+
+    const totalAcessos =
+      eventosDeAcesso.length
+
+    const totalEventos =
+      eventosFiltrados.length
 
     const visitantesUnicos = new Set(
-      events.map((e) => e.visitor_id).filter(Boolean)
+      eventosFiltrados
+        .map((evento) => evento.visitor_id)
+        .filter(Boolean)
     ).size
 
     const sessoes = new Set(
-      events.map((e) => e.session_id).filter(Boolean)
+      eventosFiltrados
+        .map((evento) => evento.session_id)
+        .filter(Boolean)
     ).size
 
-    const resumos = events.filter((e) => e.section === "resumos").length
-    const flashcards = events.filter((e) => e.section === "flashcards").length
-    const questoes = events.filter((e) => e.section === "questoes").length
-
-    const eventosComDuracao = events.filter(
-      (e) => typeof e.duration_seconds === "number"
-    )
+    /*
+     * Tempo médio.
+     *
+     * Damos preferência a eventos que realmente
+     * representam uma duração completa.
+     */
+    const eventosTempo =
+      eventosFiltrados.filter(
+        (evento) =>
+          typeof evento.duration_seconds === "number" &&
+          Number(evento.duration_seconds) >= 0 &&
+          [
+            "resumo_exit",
+            "quiz_completed",
+            "question_answered",
+          ].includes(evento.event_type)
+      )
 
     const tempoMedio =
-      eventosComDuracao.length > 0
+      eventosTempo.length > 0
         ? Math.round(
-            eventosComDuracao.reduce(
-              (acc, item) => acc + Number(item.duration_seconds || 0),
+            eventosTempo.reduce(
+              (soma, evento) =>
+                soma +
+                Number(
+                  evento.duration_seconds || 0
+                ),
               0
-            ) / eventosComDuracao.length
+            ) / eventosTempo.length
           )
         : 0
 
-    function contarPorTitulo(section?: string) {
+    /*
+     * ========================================================
+     * RESUMOS
+     * ========================================================
+     */
+
+    const resumoViews =
+      eventosFiltrados.filter(
+        (evento) =>
+          evento.event_type === "resumo_view"
+      )
+
+    const resumoOpens =
+      eventosFiltrados.filter(
+        (evento) =>
+          evento.event_type === "resumo_open"
+      )
+
+    const resumoExits =
+      eventosFiltrados.filter(
+        (evento) =>
+          evento.event_type === "resumo_exit"
+      )
+
+    const tempoMedioResumo =
+      resumoExits.length > 0
+        ? Math.round(
+            resumoExits.reduce(
+              (acc, evento) =>
+                acc +
+                Number(
+                  evento.duration_seconds || 0
+                ),
+              0
+            ) / resumoExits.length
+          )
+        : 0
+
+    const progresso100 =
+      eventosFiltrados.filter(
+        (evento) =>
+          evento.event_type ===
+            "resumo_read_progress" &&
+          Number(evento.value) === 100
+      ).length
+
+    /*
+     * ========================================================
+     * FLASHCARDS
+     * ========================================================
+     */
+
+    const flashcardViews =
+      eventosFiltrados.filter(
+        (evento) =>
+          evento.event_type === "flashcards_view"
+      ).length
+
+    const flashcardFlips =
+      eventosFiltrados.filter(
+        (evento) =>
+          evento.event_type === "flashcard_flip" &&
+          evento.success === true
+      )
+
+    const flashcardNext =
+      eventosFiltrados.filter(
+        (evento) =>
+          evento.event_type === "flashcard_next"
+      ).length
+
+    /*
+     * ========================================================
+     * QUESTÕES
+     * ========================================================
+     */
+
+    const quizzesAbertos =
+      eventosFiltrados.filter(
+        (evento) =>
+          ["quiz_view", "quiz_open"].includes(
+            evento.event_type
+          )
+      )
+
+    const quizzesConcluidos =
+      eventosFiltrados.filter(
+        (evento) =>
+          evento.event_type === "quiz_completed"
+      )
+
+    const questoesRespondidas =
+      eventosFiltrados.filter(
+        (evento) =>
+          evento.event_type ===
+          "question_answered"
+      )
+
+    const questoesFechadasRespondidas =
+      questoesRespondidas.filter(
+        (evento) =>
+          evento.success === true ||
+          evento.success === false
+      )
+
+    const acertos =
+      questoesFechadasRespondidas.filter(
+        (evento) => evento.success === true
+      ).length
+
+    const erros =
+      questoesFechadasRespondidas.filter(
+        (evento) => evento.success === false
+      ).length
+
+    const puladas =
+      eventosFiltrados.filter(
+        (evento) =>
+          evento.event_type ===
+          "question_skipped"
+      ).length
+
+    const taxaAcerto =
+      questoesFechadasRespondidas.length > 0
+        ? Math.round(
+            (acertos /
+              questoesFechadasRespondidas.length) *
+              100
+          )
+        : 0
+
+    const taxaConclusaoQuiz =
+      quizzesAbertos.length > 0
+        ? Math.min(
+            100,
+            Math.round(
+              (quizzesConcluidos.length /
+                quizzesAbertos.length) *
+                100
+            )
+          )
+        : 0
+
+    /*
+     * ========================================================
+     * FUNÇÕES DE CONTAGEM
+     * ========================================================
+     */
+
+    function contar(
+      lista: AnalyticsEvent[],
+      obterNome: (evento: AnalyticsEvent) => string
+    ): ItemContagem[] {
       const mapa: Record<string, number> = {}
 
-      events
-        .filter((e) => (section ? e.section === section : true))
-        .forEach((e) => {
-          const nome = e.title || e.slug || e.page_path || "Sem título"
-          mapa[nome] = (mapa[nome] || 0) + 1
-        })
+      lista.forEach((evento) => {
+        const nome =
+          obterNome(evento) ||
+          "Não identificado"
 
-      return Object.entries(mapa)
-        .map(([nome, total]) => ({ nome, total }))
-        .sort((a, b) => b.total - a.total)
-        .slice(0, 8)
-    }
-
-    function contarPorCampo(campo: keyof AnalyticsEvent) {
-      const mapa: Record<string, number> = {}
-
-      events.forEach((e) => {
-        const valor = String(e[campo] || "Não identificado")
-        mapa[valor] = (mapa[valor] || 0) + 1
+        mapa[nome] =
+          (mapa[nome] || 0) + 1
       })
 
       return Object.entries(mapa)
-        .map(([nome, total]) => ({ nome, total }))
+        .map(([nome, total]) => ({
+          nome,
+          total,
+        }))
         .sort((a, b) => b.total - a.total)
-        .slice(0, 6)
     }
+
+    /*
+     * ========================================================
+     * RESUMOS MAIS ACESSADOS
+     * ========================================================
+     */
+
+    const resumosMaisAcessados = contar(
+      resumoViews,
+      (evento) =>
+        evento.title ||
+        evento.slug ||
+        "Resumo"
+    ).slice(0, 8)
+
+    /*
+     * ========================================================
+     * FLASHCARDS MAIS UTILIZADOS
+     * ========================================================
+     */
+
+    const flashcardsMaisUsados = contar(
+      flashcardFlips,
+      (evento) =>
+        evento.title ||
+        evento.content_id ||
+        "Flashcard"
+    ).slice(0, 8)
+
+    /*
+     * ========================================================
+     * QUIZZES MAIS ACESSADOS
+     * ========================================================
+     */
+
+    const quizzesMaisAcessados = contar(
+      quizzesAbertos,
+      (evento) =>
+        evento.metadata?.tema_titulo ||
+        evento.title ||
+        evento.slug ||
+        "Quiz"
+    ).slice(0, 8)
+
+    /*
+     * ========================================================
+     * QUESTÕES MAIS DIFÍCEIS
+     * ========================================================
+     */
+
+    const mapaQuestoes = new Map<
+      string,
+      {
+        titulo: string
+        tema: string
+        respostas: number
+        acertos: number
+        erros: number
+      }
+    >()
+
+    questoesFechadasRespondidas.forEach(
+      (evento) => {
+        const id =
+          evento.content_id ||
+          evento.title ||
+          evento.id
+
+        if (!mapaQuestoes.has(id)) {
+          mapaQuestoes.set(id, {
+            titulo:
+              evento.title ||
+              "Questão sem título",
+
+            tema:
+              evento.metadata?.tema_titulo ||
+              evento.slug ||
+              "Sem tema",
+
+            respostas: 0,
+            acertos: 0,
+            erros: 0,
+          })
+        }
+
+        const item =
+          mapaQuestoes.get(id)!
+
+        item.respostas += 1
+
+        if (evento.success) {
+          item.acertos += 1
+        } else {
+          item.erros += 1
+        }
+      }
+    )
+
+    const questoesDificeis: QuestaoDificil[] =
+      Array.from(
+        mapaQuestoes.entries()
+      )
+        .map(([id, item]) => ({
+          id,
+
+          titulo: item.titulo,
+
+          tema: item.tema,
+
+          respostas: item.respostas,
+
+          acertos: item.acertos,
+
+          erros: item.erros,
+
+          taxa:
+            item.respostas > 0
+              ? Math.round(
+                  (item.acertos /
+                    item.respostas) *
+                    100
+                )
+              : 0,
+        }))
+        .filter(
+          (item) =>
+            item.respostas > 0
+        )
+        .sort(
+          (a, b) =>
+            a.taxa - b.taxa
+        )
+        .slice(0, 8)
+
+    /*
+     * ========================================================
+     * DISPOSITIVOS
+     * ========================================================
+     */
+
+    const dispositivos = contar(
+      eventosDeAcesso,
+      (evento) =>
+        evento.device_type ||
+        "Não identificado"
+    )
+
+    const navegadores = contar(
+      eventosDeAcesso,
+      (evento) =>
+        evento.browser ||
+        "Não identificado"
+    )
+
+    const sistemas = contar(
+      eventosDeAcesso,
+      (evento) =>
+        evento.os ||
+        "Não identificado"
+    )
+
+    /*
+     * ========================================================
+     * ORIGENS
+     * ========================================================
+     */
+
+    const origens = contar(
+      eventosDeAcesso,
+      (evento) => {
+        if (!evento.referrer) {
+          return "Acesso direto"
+        }
+
+        try {
+          const hostname =
+            new URL(
+              evento.referrer
+            ).hostname
+
+          return hostname.replace(
+            /^www\./,
+            ""
+          )
+        } catch {
+          return evento.referrer
+        }
+      }
+    ).slice(0, 8)
+
+    /*
+     * ========================================================
+     * GRÁFICO DE ACESSOS POR DIA
+     * ========================================================
+     */
+
+    const acessosPorDiaMap:
+      Record<string, number> = {}
+
+    eventosDeAcesso.forEach(
+      (evento) => {
+        const data = new Date(
+          evento.created_at
+        )
+
+        const chave =
+          `${data.getFullYear()}-` +
+          `${String(
+            data.getMonth() + 1
+          ).padStart(2, "0")}-` +
+          `${String(
+            data.getDate()
+          ).padStart(2, "0")}`
+
+        acessosPorDiaMap[chave] =
+          (acessosPorDiaMap[chave] ||
+            0) + 1
+      }
+    )
+
+    const acessosPorDia =
+      Object.entries(
+        acessosPorDiaMap
+      )
+        .map(([data, total]) => ({
+          data,
+          total,
+        }))
+        .sort((a, b) =>
+          a.data.localeCompare(b.data)
+        )
+
+    /*
+     * ========================================================
+     * HORÁRIOS
+     * ========================================================
+     */
+
+    const horarios = Array.from(
+      { length: 24 },
+      (_, hora) => ({
+        hora,
+        total: 0,
+      })
+    )
+
+    eventosDeAcesso.forEach(
+      (evento) => {
+        const hora = new Date(
+          evento.created_at
+        ).getHours()
+
+        horarios[hora].total += 1
+      }
+    )
+
+    /*
+     * ========================================================
+     * PROGRESSO DOS RESUMOS
+     * ========================================================
+     */
+
+    const progressoResumo = [
+      25,
+      50,
+      75,
+      100,
+    ].map((percentual) => ({
+      nome: `${percentual}%`,
+
+      total:
+        eventosFiltrados.filter(
+          (evento) =>
+            evento.event_type ===
+              "resumo_read_progress" &&
+            Number(evento.value) ===
+              percentual
+        ).length,
+    }))
 
     return {
       totalAcessos,
+      totalEventos,
       visitantesUnicos,
       sessoes,
-      resumos,
-      flashcards,
-      questoes,
       tempoMedio,
-      maisAcessados: contarPorTitulo(),
-      resumosMaisAcessados: contarPorTitulo("resumos"),
-      flashcardsMaisAcessados: contarPorTitulo("flashcards"),
-      questoesMaisAcessadas: contarPorTitulo("questoes"),
-      dispositivos: contarPorCampo("device_type"),
-      navegadores: contarPorCampo("browser"),
-      sistemas: contarPorCampo("os"),
+
+      resumoViews:
+        resumoViews.length,
+
+      resumoOpens:
+        resumoOpens.length,
+
+      tempoMedioResumo,
+      progresso100,
+
+      flashcardViews,
+      flashcardFlips:
+        flashcardFlips.length,
+      flashcardNext,
+
+      quizzesAbertos:
+        quizzesAbertos.length,
+
+      quizzesConcluidos:
+        quizzesConcluidos.length,
+
+      questoesRespondidas:
+        questoesRespondidas.length,
+
+      acertos,
+      erros,
+      puladas,
+      taxaAcerto,
+      taxaConclusaoQuiz,
+
+      resumosMaisAcessados,
+      flashcardsMaisUsados,
+      quizzesMaisAcessados,
+      questoesDificeis,
+
+      dispositivos,
+      navegadores,
+      sistemas,
+      origens,
+
+      acessosPorDia,
+      horarios,
+      progressoResumo,
     }
-  }, [events])
+  }, [eventosFiltrados])
+
+  /*
+   * ============================================================
+   * FORMATAÇÃO
+   * ============================================================
+   */
+
+  function formatarTempo(segundos: number) {
+    if (!segundos) return "0s"
+
+    if (segundos < 60) {
+      return `${segundos}s`
+    }
+
+    const minutos =
+      Math.floor(segundos / 60)
+
+    const resto =
+      segundos % 60
+
+    if (minutos < 60) {
+      return resto > 0
+        ? `${minutos}m ${resto}s`
+        : `${minutos}m`
+    }
+
+    const horas =
+      Math.floor(minutos / 60)
+
+    const minutosRestantes =
+      minutos % 60
+
+    return `${horas}h ${minutosRestantes}m`
+  }
+
+  function limparFiltros() {
+    setSecao("todos")
+    setDispositivo("todos")
+    setTipoEvento("todos")
+  }
+
+  /*
+   * ============================================================
+   * CARREGAMENTO
+   * ============================================================
+   */
 
   if (loading) {
     return (
-      <main className="min-h-screen bg-slate-950 text-white">
+      <main className="min-h-screen bg-background">
         <Sidebar />
-        <div className="p-6 md:ml-64">
-          <p>Carregando dashboard...</p>
+
+        <div className="lg:pl-64 pt-14 lg:pt-0">
+          <div className="max-w-7xl mx-auto px-4 sm:px-6 py-8">
+
+            <div className="flex min-h-[60vh] flex-col items-center justify-center">
+
+              <div className="h-10 w-10 animate-spin rounded-full border-2 border-sky-500 border-t-transparent" />
+
+              <p className="mt-4 text-sm text-muted-foreground">
+                Carregando analytics...
+              </p>
+
+            </div>
+
+          </div>
         </div>
       </main>
     )
@@ -154,113 +967,1329 @@ export default function DashboardPage() {
 
   if (erro) {
     return (
-      <main className="min-h-screen bg-slate-950 text-white">
+      <main className="min-h-screen bg-background">
         <Sidebar />
-        <div className="p-6 md:ml-64">
-          <p className="text-red-400">{erro}</p>
+
+        <div className="lg:pl-64 pt-14 lg:pt-0">
+          <div className="max-w-7xl mx-auto px-4 sm:px-6 py-8">
+
+            <div className="rounded-2xl border border-rose-500/20 bg-rose-500/10 p-6">
+
+              <p className="text-sm text-rose-400">
+                {erro}
+              </p>
+
+              <button
+                onClick={
+                  carregarDashboard
+                }
+                className="mt-4 inline-flex items-center gap-2 rounded-xl bg-rose-500 px-4 py-2 text-sm font-medium text-white"
+              >
+                <RefreshCw className="h-4 w-4" />
+                Tentar novamente
+              </button>
+
+            </div>
+
+          </div>
         </div>
       </main>
     )
   }
 
   return (
-    <main className="min-h-screen bg-slate-950 text-white">
+    <main className="min-h-screen bg-background">
       <Sidebar />
 
-      <div className="p-6 md:ml-64">
-        <div className="mb-8">
-          <h1 className="text-3xl font-bold">Dashboard</h1>
-          <p className="mt-2 text-slate-400">
-            Acompanhe os acessos e uso das abas do site.
-          </p>
+      <div className="lg:pl-64 pt-14 lg:pt-0">
+
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 py-6 lg:py-8">
+
+          {/* ================================================== */}
+          {/* CABEÇALHO                                          */}
+          {/* ================================================== */}
+
+          <div className="flex flex-col gap-4 mb-7 sm:flex-row sm:items-center sm:justify-between">
+
+            <div>
+
+              <div className="flex items-center gap-2 mb-1">
+
+                <div className="h-2 w-2 rounded-full bg-sky-400" />
+
+                <p className="text-xs font-medium text-sky-400">
+                  Administração
+                </p>
+
+              </div>
+
+              <h1 className="text-2xl sm:text-3xl font-bold text-foreground">
+                Analytics
+              </h1>
+
+              <p className="mt-1 text-sm text-muted-foreground">
+                Acompanhe como os alunos utilizam o hub de estudos.
+              </p>
+
+            </div>
+
+            <button
+              onClick={
+                carregarDashboard
+              }
+              className="inline-flex items-center justify-center gap-2 rounded-xl border border-border bg-card px-4 py-2.5 text-sm font-medium text-foreground transition hover:border-sky-500/30 hover:text-sky-400"
+            >
+              <RefreshCw className="h-4 w-4" />
+
+              Atualizar
+            </button>
+
+          </div>
+
+          {/* ================================================== */}
+          {/* FILTROS                                            */}
+          {/* ================================================== */}
+
+          <section className="mb-6 rounded-2xl border border-border bg-card p-4">
+
+            <div className="mb-4 flex items-center gap-2">
+
+              <Filter className="h-4 w-4 text-sky-400" />
+
+              <h2 className="text-sm font-semibold text-foreground">
+                Filtros
+              </h2>
+
+            </div>
+
+            <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
+
+              <SelectFiltro
+                label="Período"
+                value={periodo}
+                onChange={(value) =>
+                  setPeriodo(
+                    value as Periodo
+                  )
+                }
+                options={[
+                  {
+                    value: "hoje",
+                    label: "Hoje",
+                  },
+                  {
+                    value: "7d",
+                    label: "Últimos 7 dias",
+                  },
+                  {
+                    value: "30d",
+                    label: "Últimos 30 dias",
+                  },
+                  {
+                    value: "90d",
+                    label: "Últimos 90 dias",
+                  },
+                  {
+                    value: "todos",
+                    label: "Todo o período",
+                  },
+                  {
+                    value: "personalizado",
+                    label: "Personalizado",
+                  },
+                ]}
+              />
+
+              <SelectFiltro
+                label="Seção"
+                value={secao}
+                onChange={setSecao}
+                options={[
+                  {
+                    value: "todos",
+                    label: "Todas",
+                  },
+                  {
+                    value: "home",
+                    label: "Início",
+                  },
+                  {
+                    value: "resumos",
+                    label: "Resumos",
+                  },
+                  {
+                    value: "flashcards",
+                    label: "Flashcards",
+                  },
+                  {
+                    value: "questoes",
+                    label: "Questões",
+                  },
+                ]}
+              />
+
+              <SelectFiltro
+                label="Dispositivo"
+                value={dispositivo}
+                onChange={
+                  setDispositivo
+                }
+                options={[
+                  {
+                    value: "todos",
+                    label: "Todos",
+                  },
+                  {
+                    value: "mobile",
+                    label: "Celular",
+                  },
+                  {
+                    value: "tablet",
+                    label: "Tablet",
+                  },
+                  {
+                    value: "desktop",
+                    label: "Desktop",
+                  },
+                ]}
+              />
+
+              <SelectFiltro
+                label="Evento"
+                value={tipoEvento}
+                onChange={
+                  setTipoEvento
+                }
+                options={[
+                  {
+                    value: "todos",
+                    label: "Todos os eventos",
+                  },
+                  ...tiposDeEvento.map(
+                    (evento) => ({
+                      value: evento,
+                      label: evento,
+                    })
+                  ),
+                ]}
+              />
+
+            </div>
+
+            {periodo ===
+              "personalizado" && (
+              <div className="mt-4 grid gap-3 sm:grid-cols-2 max-w-lg">
+
+                <div>
+
+                  <label className="mb-1.5 block text-xs text-muted-foreground">
+                    Data inicial
+                  </label>
+
+                  <input
+                    type="date"
+                    value={
+                      dataInicio
+                    }
+                    onChange={(e) =>
+                      setDataInicio(
+                        e.target.value
+                      )
+                    }
+                    className="h-10 w-full rounded-xl border border-border bg-background px-3 text-sm text-foreground outline-none focus:border-sky-500"
+                  />
+
+                </div>
+
+                <div>
+
+                  <label className="mb-1.5 block text-xs text-muted-foreground">
+                    Data final
+                  </label>
+
+                  <input
+                    type="date"
+                    value={dataFim}
+                    onChange={(e) =>
+                      setDataFim(
+                        e.target.value
+                      )
+                    }
+                    className="h-10 w-full rounded-xl border border-border bg-background px-3 text-sm text-foreground outline-none focus:border-sky-500"
+                  />
+
+                </div>
+
+              </div>
+            )}
+
+            {(secao !== "todos" ||
+              dispositivo !== "todos" ||
+              tipoEvento !== "todos") && (
+              <button
+                onClick={
+                  limparFiltros
+                }
+                className="mt-4 text-xs font-medium text-sky-400 hover:text-sky-300"
+              >
+                Limpar filtros adicionais
+              </button>
+            )}
+
+          </section>
+
+          {/* ================================================== */}
+          {/* MÉTRICAS PRINCIPAIS                                */}
+          {/* ================================================== */}
+
+          <section className="grid gap-3 sm:grid-cols-2 xl:grid-cols-5">
+
+            <Card
+              titulo="Acessos"
+              valor={
+                dados.totalAcessos
+              }
+              descricao="Visualizações"
+              icon={<Eye />}
+            />
+
+            <Card
+              titulo="Visitantes"
+              valor={
+                dados.visitantesUnicos
+              }
+              descricao="Usuários únicos"
+              icon={<Users />}
+            />
+
+            <Card
+              titulo="Sessões"
+              valor={dados.sessoes}
+              descricao="Sessões registradas"
+              icon={<BarChart3 />}
+            />
+
+            <Card
+              titulo="Tempo médio"
+              valor={formatarTempo(
+                dados.tempoMedio
+              )}
+              descricao="Eventos com duração"
+              icon={<Clock />}
+            />
+
+            <Card
+              titulo="Eventos"
+              valor={
+                dados.totalEventos
+              }
+              descricao="Interações registradas"
+              icon={<Activity />}
+            />
+
+          </section>
+
+          {/* ================================================== */}
+          {/* GRÁFICO PRINCIPAL                                  */}
+          {/* ================================================== */}
+
+          <section className="mt-6 grid gap-5 xl:grid-cols-[minmax(0,1fr)_320px]">
+
+            <Painel titulo="Acessos ao longo do tempo">
+
+              <GraficoAcessos
+                dados={
+                  dados.acessosPorDia
+                }
+              />
+
+            </Painel>
+
+            <Painel titulo="Horários de acesso">
+
+              <GraficoHorarios
+                dados={dados.horarios}
+              />
+
+            </Painel>
+
+          </section>
+
+          {/* ================================================== */}
+          {/* ÁREAS DO SITE                                      */}
+          {/* ================================================== */}
+
+          <div className="mt-8 mb-3">
+
+            <h2 className="text-lg font-bold text-foreground">
+              Uso dos conteúdos
+            </h2>
+
+            <p className="text-xs text-muted-foreground">
+              Métricas específicas de cada área do hub
+            </p>
+
+          </div>
+
+          <section className="grid gap-4 lg:grid-cols-3">
+
+            {/* RESUMOS */}
+
+            <Painel
+              titulo="Resumos"
+              icon={
+                <FileText className="h-4 w-4" />
+              }
+            >
+
+              <div className="grid grid-cols-2 gap-3">
+
+                <MiniMetrica
+                  titulo="Visualizações"
+                  valor={
+                    dados.resumoViews
+                  }
+                />
+
+                <MiniMetrica
+                  titulo="Tempo médio"
+                  valor={formatarTempo(
+                    dados.tempoMedioResumo
+                  )}
+                />
+
+                <MiniMetrica
+                  titulo="Aberturas"
+                  valor={
+                    dados.resumoOpens
+                  }
+                />
+
+                <MiniMetrica
+                  titulo="Chegaram a 100%"
+                  valor={
+                    dados.progresso100
+                  }
+                />
+
+              </div>
+
+            </Painel>
+
+            {/* FLASHCARDS */}
+
+            <Painel
+              titulo="Flashcards"
+              icon={
+                <Layers className="h-4 w-4" />
+              }
+            >
+
+              <div className="grid grid-cols-2 gap-3">
+
+                <MiniMetrica
+                  titulo="Sessões"
+                  valor={
+                    dados.flashcardViews
+                  }
+                />
+
+                <MiniMetrica
+                  titulo="Respostas abertas"
+                  valor={
+                    dados.flashcardFlips
+                  }
+                />
+
+                <MiniMetrica
+                  titulo="Próximos cards"
+                  valor={
+                    dados.flashcardNext
+                  }
+                />
+
+                <MiniMetrica
+                  titulo="Interações"
+                  valor={
+                    dados.flashcardFlips +
+                    dados.flashcardNext
+                  }
+                />
+
+              </div>
+
+            </Painel>
+
+            {/* QUESTÕES */}
+
+            <Painel
+              titulo="Questões"
+              icon={
+                <HelpCircle className="h-4 w-4" />
+              }
+            >
+
+              <div className="grid grid-cols-2 gap-3">
+
+                <MiniMetrica
+                  titulo="Respondidas"
+                  valor={
+                    dados.questoesRespondidas
+                  }
+                />
+
+                <MiniMetrica
+                  titulo="Acerto"
+                  valor={`${dados.taxaAcerto}%`}
+                />
+
+                <MiniMetrica
+                  titulo="Acertos"
+                  valor={
+                    dados.acertos
+                  }
+                />
+
+                <MiniMetrica
+                  titulo="Erros"
+                  valor={dados.erros}
+                />
+
+              </div>
+
+            </Painel>
+
+          </section>
+
+          {/* ================================================== */}
+          {/* DESEMPENHO QUESTÕES                                */}
+          {/* ================================================== */}
+
+          <section className="mt-6 grid gap-5 xl:grid-cols-[340px_minmax(0,1fr)]">
+
+            <Painel titulo="Desempenho dos quizzes">
+
+              <div className="space-y-5">
+
+                <Indicador
+                  titulo="Taxa de acerto"
+                  valor={
+                    dados.taxaAcerto
+                  }
+                  sufixo="%"
+                />
+
+                <Indicador
+                  titulo="Taxa de conclusão"
+                  valor={
+                    dados.taxaConclusaoQuiz
+                  }
+                  sufixo="%"
+                />
+
+                <div className="grid grid-cols-3 gap-2 pt-2">
+
+                  <ResumoNumero
+                    label="Acertos"
+                    valor={
+                      dados.acertos
+                    }
+                    icon={
+                      <CheckCircle2 className="h-4 w-4 text-emerald-400" />
+                    }
+                  />
+
+                  <ResumoNumero
+                    label="Erros"
+                    valor={
+                      dados.erros
+                    }
+                    icon={
+                      <XCircle className="h-4 w-4 text-rose-400" />
+                    }
+                  />
+
+                  <ResumoNumero
+                    label="Puladas"
+                    valor={
+                      dados.puladas
+                    }
+                    icon={
+                      <ChevronDown className="h-4 w-4 text-amber-400" />
+                    }
+                  />
+
+                </div>
+
+              </div>
+
+            </Painel>
+
+            <Painel
+              titulo="Questões com maior dificuldade"
+              icon={
+                <Target className="h-4 w-4" />
+              }
+            >
+
+              {dados.questoesDificeis.length ===
+              0 ? (
+                <Vazio />
+              ) : (
+                <div className="space-y-1">
+
+                  {dados.questoesDificeis.map(
+                    (questao, index) => (
+                      <div
+                        key={
+                          questao.id
+                        }
+                        className="flex items-center gap-3 rounded-xl px-2 py-3 transition hover:bg-muted/40"
+                      >
+
+                        <div className="flex h-7 w-7 shrink-0 items-center justify-center rounded-lg bg-rose-500/10 text-xs font-semibold text-rose-400">
+                          {index + 1}
+                        </div>
+
+                        <div className="min-w-0 flex-1">
+
+                          <p className="truncate text-sm font-medium text-foreground">
+                            {
+                              questao.titulo
+                            }
+                          </p>
+
+                          <p className="truncate text-[10px] text-muted-foreground">
+                            {
+                              questao.tema
+                            }{" "}
+                            ·{" "}
+                            {
+                              questao.respostas
+                            }{" "}
+                            respostas
+                          </p>
+
+                        </div>
+
+                        <div className="text-right shrink-0">
+
+                          <p
+                            className={`text-sm font-bold ${
+                              questao.taxa <
+                              50
+                                ? "text-rose-400"
+                                : questao.taxa <
+                                    70
+                                  ? "text-amber-400"
+                                  : "text-emerald-400"
+                            }`}
+                          >
+                            {
+                              questao.taxa
+                            }
+                            %
+                          </p>
+
+                          <p className="text-[9px] text-muted-foreground">
+                            acerto
+                          </p>
+
+                        </div>
+
+                      </div>
+                    )
+                  )}
+
+                </div>
+              )}
+
+            </Painel>
+
+          </section>
+
+          {/* ================================================== */}
+          {/* PROGRESSO LEITURA                                  */}
+          {/* ================================================== */}
+
+          <section className="mt-6 grid gap-5 xl:grid-cols-2">
+
+            <Painel
+              titulo="Progresso de leitura dos resumos"
+              icon={
+                <BookOpen className="h-4 w-4" />
+              }
+            >
+
+              <Barras
+                dados={
+                  dados.progressoResumo
+                }
+              />
+
+            </Painel>
+
+            <Painel
+              titulo="Resumos mais acessados"
+              icon={
+                <TrendingUp className="h-4 w-4" />
+              }
+            >
+
+              <Ranking
+                dados={
+                  dados.resumosMaisAcessados
+                }
+              />
+
+            </Painel>
+
+          </section>
+
+          {/* ================================================== */}
+          {/* RANKINGS                                           */}
+          {/* ================================================== */}
+
+          <section className="mt-6 grid gap-5 xl:grid-cols-2">
+
+            <Painel
+              titulo="Flashcards mais estudados"
+              icon={
+                <Layers className="h-4 w-4" />
+              }
+            >
+
+              <Ranking
+                dados={
+                  dados.flashcardsMaisUsados
+                }
+              />
+
+            </Painel>
+
+            <Painel
+              titulo="Quizzes mais acessados"
+              icon={
+                <Target className="h-4 w-4" />
+              }
+            >
+
+              <Ranking
+                dados={
+                  dados.quizzesMaisAcessados
+                }
+              />
+
+            </Painel>
+
+          </section>
+
+          {/* ================================================== */}
+          {/* TECNOLOGIA                                         */}
+          {/* ================================================== */}
+
+          <div className="mt-8 mb-3">
+
+            <h2 className="text-lg font-bold text-foreground">
+              Público e tecnologia
+            </h2>
+
+            <p className="text-xs text-muted-foreground">
+              Dispositivos e formas de acesso
+            </p>
+
+          </div>
+
+          <section className="grid gap-5 xl:grid-cols-4">
+
+            <Painel
+              titulo="Dispositivos"
+              icon={
+                <Smartphone className="h-4 w-4" />
+              }
+            >
+              <Barras
+                dados={
+                  dados.dispositivos
+                }
+              />
+            </Painel>
+
+            <Painel
+              titulo="Navegadores"
+              icon={
+                <Monitor className="h-4 w-4" />
+              }
+            >
+              <Barras
+                dados={
+                  dados.navegadores
+                }
+              />
+            </Painel>
+
+            <Painel
+              titulo="Sistemas"
+              icon={
+                <BarChart3 className="h-4 w-4" />
+              }
+            >
+              <Barras
+                dados={
+                  dados.sistemas
+                }
+              />
+            </Painel>
+
+            <Painel
+              titulo="Origem"
+              icon={
+                <MousePointerClick className="h-4 w-4" />
+              }
+            >
+              <Ranking
+                dados={
+                  dados.origens
+                }
+                compacto
+              />
+            </Painel>
+
+          </section>
+
+          <div className="mt-8 text-center text-[10px] text-muted-foreground">
+            Os dados exibidos são calculados a partir dos eventos registrados em site_analytics.
+          </div>
+
         </div>
 
-        <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
-          <Card titulo="Total de acessos" valor={dados.totalAcessos} icon={<Eye />} />
-          <Card titulo="Visitantes únicos" valor={dados.visitantesUnicos} icon={<Users />} />
-          <Card titulo="Sessões" valor={dados.sessoes} icon={<BarChart3 />} />
-          <Card titulo="Tempo médio" valor={`${dados.tempoMedio}s`} icon={<Clock />} />
-        </div>
-
-        <div className="mt-6 grid gap-4 sm:grid-cols-3">
-          <Card titulo="Resumos" valor={dados.resumos} icon={<FileText />} />
-          <Card titulo="Flashcards" valor={dados.flashcards} icon={<Layers />} />
-          <Card titulo="Questões" valor={dados.questoes} icon={<HelpCircle />} />
-        </div>
-
-        <div className="mt-8 grid gap-6 xl:grid-cols-2">
-          <Tabela titulo="Mais acessados no geral" dados={dados.maisAcessados} />
-          <Tabela titulo="Resumos mais acessados" dados={dados.resumosMaisAcessados} />
-          <Tabela titulo="Flashcards mais acessados" dados={dados.flashcardsMaisAcessados} />
-          <Tabela titulo="Questões mais acessadas" dados={dados.questoesMaisAcessadas} />
-        </div>
-
-        <div className="mt-8 grid gap-6 xl:grid-cols-3">
-          <Tabela titulo="Dispositivos" dados={dados.dispositivos} icon={<Smartphone />} />
-          <Tabela titulo="Navegadores" dados={dados.navegadores} icon={<Monitor />} />
-          <Tabela titulo="Sistemas operacionais" dados={dados.sistemas} />
-        </div>
       </div>
     </main>
   )
 }
 
+/*
+ * ==============================================================
+ * COMPONENTES
+ * ==============================================================
+ */
+
 function Card({
   titulo,
   valor,
+  descricao,
   icon,
 }: {
   titulo: string
   valor: string | number
+  descricao: string
   icon: React.ReactNode
 }) {
   return (
-    <div className="rounded-2xl border border-slate-800 bg-slate-900 p-5 shadow">
-      <div className="mb-4 flex items-center justify-between">
-        <p className="text-sm text-slate-400">{titulo}</p>
-        <div className="text-blue-400">{icon}</div>
+    <div className="rounded-2xl border border-border bg-card p-4">
+
+      <div className="flex items-start justify-between">
+
+        <div>
+
+          <p className="text-xs text-muted-foreground">
+            {titulo}
+          </p>
+
+          <p className="mt-2 text-2xl font-bold tracking-tight text-foreground">
+            {valor}
+          </p>
+
+          <p className="mt-1 text-[10px] text-muted-foreground">
+            {descricao}
+          </p>
+
+        </div>
+
+        <div className="flex h-9 w-9 items-center justify-center rounded-xl bg-sky-500/10 text-sky-400">
+          {icon}
+        </div>
+
       </div>
 
-      <p className="text-3xl font-bold">{valor}</p>
     </div>
   )
 }
 
-function Tabela({
+function Painel({
   titulo,
-  dados,
   icon,
+  children,
 }: {
   titulo: string
-  dados: { nome: string; total: number }[]
   icon?: React.ReactNode
+  children: React.ReactNode
 }) {
   return (
-    <div className="rounded-2xl border border-slate-800 bg-slate-900 p-5 shadow">
-      <div className="mb-4 flex items-center gap-2">
-        {icon && <div className="text-blue-400">{icon}</div>}
-        <h2 className="text-lg font-semibold">{titulo}</h2>
+    <div className="rounded-2xl border border-border bg-card p-5">
+
+      <div className="mb-5 flex items-center gap-2">
+
+        {icon && (
+          <div className="text-sky-400">
+            {icon}
+          </div>
+        )}
+
+        <h3 className="text-sm font-semibold text-foreground">
+          {titulo}
+        </h3>
+
       </div>
 
-      {dados.length === 0 ? (
-        <p className="text-sm text-slate-400">Nenhum dado encontrado.</p>
-      ) : (
-        <div className="space-y-3">
-          {dados.map((item) => (
-            <div
-              key={item.nome}
-              className="flex items-center justify-between gap-4 border-b border-slate-800 pb-2 last:border-0"
-            >
-              <span className="line-clamp-1 text-sm text-slate-300">
+      {children}
+
+    </div>
+  )
+}
+
+function MiniMetrica({
+  titulo,
+  valor,
+}: {
+  titulo: string
+  valor: string | number
+}) {
+  return (
+    <div className="rounded-xl border border-border bg-background/40 p-3">
+
+      <p className="text-[10px] text-muted-foreground">
+        {titulo}
+      </p>
+
+      <p className="mt-1 text-lg font-bold text-foreground">
+        {valor}
+      </p>
+
+    </div>
+  )
+}
+
+function SelectFiltro({
+  label,
+  value,
+  onChange,
+  options,
+}: {
+  label: string
+  value: string
+  onChange: (value: string) => void
+  options: {
+    value: string
+    label: string
+  }[]
+}) {
+  return (
+    <div>
+
+      <label className="mb-1.5 block text-xs text-muted-foreground">
+        {label}
+      </label>
+
+      <div className="relative">
+
+        <select
+          value={value}
+          onChange={(e) =>
+            onChange(
+              e.target.value
+            )
+          }
+          className="h-10 w-full appearance-none rounded-xl border border-border bg-background px-3 pr-9 text-xs text-foreground outline-none transition focus:border-sky-500"
+        >
+          {options.map(
+            (option) => (
+              <option
+                key={
+                  option.value
+                }
+                value={
+                  option.value
+                }
+              >
+                {option.label}
+              </option>
+            )
+          )}
+        </select>
+
+        <ChevronDown className="pointer-events-none absolute right-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
+
+      </div>
+
+    </div>
+  )
+}
+
+function Ranking({
+  dados,
+  compacto = false,
+}: {
+  dados: ItemContagem[]
+  compacto?: boolean
+}) {
+  if (dados.length === 0) {
+    return <Vazio />
+  }
+
+  return (
+    <div className="space-y-1">
+
+      {dados.map(
+        (item, index) => (
+          <div
+            key={`${item.nome}-${index}`}
+            className={`flex items-center gap-3 rounded-xl transition hover:bg-muted/40 ${
+              compacto
+                ? "px-1 py-2"
+                : "px-2 py-2.5"
+            }`}
+          >
+
+            <span className="flex h-6 w-6 shrink-0 items-center justify-center rounded-lg bg-sky-500/10 text-[10px] font-semibold text-sky-400">
+              {index + 1}
+            </span>
+
+            <span className="min-w-0 flex-1 truncate text-xs text-foreground">
+              {item.nome}
+            </span>
+
+            <span className="rounded-lg bg-sky-500/10 px-2 py-1 text-[10px] font-semibold text-sky-400">
+              {item.total}
+            </span>
+
+          </div>
+        )
+      )}
+
+    </div>
+  )
+}
+
+function Barras({
+  dados,
+}: {
+  dados: ItemContagem[]
+}) {
+  if (dados.length === 0) {
+    return <Vazio />
+  }
+
+  const maximo = Math.max(
+    ...dados.map(
+      (item) => item.total
+    ),
+    1
+  )
+
+  return (
+    <div className="space-y-4">
+
+      {dados.map((item) => {
+        const porcentagem =
+          Math.max(
+            3,
+            (item.total / maximo) *
+              100
+          )
+
+        return (
+          <div key={item.nome}>
+
+            <div className="mb-1.5 flex items-center justify-between gap-3">
+
+              <span className="truncate text-xs text-muted-foreground">
                 {item.nome}
               </span>
-              <span className="rounded-full bg-blue-500/10 px-3 py-1 text-sm font-semibold text-blue-300">
+
+              <span className="text-xs font-semibold text-foreground">
                 {item.total}
               </span>
+
             </div>
-          ))}
-        </div>
-      )}
+
+            <div className="h-1.5 overflow-hidden rounded-full bg-secondary">
+
+              <div
+                className="h-full rounded-full bg-sky-500 transition-all"
+                style={{
+                  width: `${porcentagem}%`,
+                }}
+              />
+
+            </div>
+
+          </div>
+        )
+      })}
+
+    </div>
+  )
+}
+
+function Indicador({
+  titulo,
+  valor,
+  sufixo = "",
+}: {
+  titulo: string
+  valor: number
+  sufixo?: string
+}) {
+  const largura =
+    Math.min(
+      100,
+      Math.max(
+        0,
+        valor
+      )
+    )
+
+  return (
+    <div>
+
+      <div className="mb-2 flex items-center justify-between">
+
+        <span className="text-xs text-muted-foreground">
+          {titulo}
+        </span>
+
+        <span className="text-sm font-bold text-foreground">
+          {valor}
+          {sufixo}
+        </span>
+
+      </div>
+
+      <div className="h-2 overflow-hidden rounded-full bg-secondary">
+
+        <div
+          className="h-full rounded-full bg-sky-500 transition-all"
+          style={{
+            width: `${largura}%`,
+          }}
+        />
+
+      </div>
+
+    </div>
+  )
+}
+
+function ResumoNumero({
+  label,
+  valor,
+  icon,
+}: {
+  label: string
+  valor: number
+  icon: React.ReactNode
+}) {
+  return (
+    <div className="rounded-xl border border-border bg-background/40 p-3">
+
+      <div className="mb-2">
+        {icon}
+      </div>
+
+      <p className="text-lg font-bold text-foreground">
+        {valor}
+      </p>
+
+      <p className="text-[9px] text-muted-foreground">
+        {label}
+      </p>
+
+    </div>
+  )
+}
+
+function GraficoAcessos({
+  dados,
+}: {
+  dados: {
+    data: string
+    total: number
+  }[]
+}) {
+  if (dados.length === 0) {
+    return (
+      <div className="flex h-56 items-center justify-center">
+        <Vazio />
+      </div>
+    )
+  }
+
+  const dadosExibidos =
+    dados.length > 30
+      ? dados.slice(-30)
+      : dados
+
+  const maiorValor =
+    Math.max(
+      ...dadosExibidos.map(
+        (item) => item.total
+      ),
+      1
+    )
+
+  return (
+    <div>
+
+      <div className="flex h-52 items-end gap-1.5 sm:gap-2">
+
+        {dadosExibidos.map(
+          (item) => {
+            const altura =
+              Math.max(
+                4,
+                (item.total /
+                  maiorValor) *
+                  100
+              )
+
+            const data =
+              new Date(
+                `${item.data}T12:00:00`
+              )
+
+            return (
+              <div
+                key={
+                  item.data
+                }
+                className="group relative flex h-full min-w-0 flex-1 items-end"
+              >
+
+                <div
+                  className="w-full rounded-t-md bg-sky-500/70 transition hover:bg-sky-400"
+                  style={{
+                    height: `${altura}%`,
+                  }}
+                />
+
+                <div className="pointer-events-none absolute bottom-full left-1/2 z-20 mb-2 hidden -translate-x-1/2 whitespace-nowrap rounded-lg border border-border bg-popover px-2 py-1 text-[10px] text-popover-foreground shadow-lg group-hover:block">
+
+                  {data.toLocaleDateString(
+                    "pt-BR"
+                  )}{" "}
+                  · {item.total} acessos
+
+                </div>
+
+              </div>
+            )
+          }
+        )}
+
+      </div>
+
+      <div className="mt-3 flex justify-between text-[9px] text-muted-foreground">
+
+        <span>
+          {new Date(
+            `${dadosExibidos[0].data}T12:00:00`
+          ).toLocaleDateString(
+            "pt-BR",
+            {
+              day: "2-digit",
+              month: "short",
+            }
+          )}
+        </span>
+
+        <span>
+          {new Date(
+            `${dadosExibidos[
+              dadosExibidos.length -
+                1
+            ].data}T12:00:00`
+          ).toLocaleDateString(
+            "pt-BR",
+            {
+              day: "2-digit",
+              month: "short",
+            }
+          )}
+        </span>
+
+      </div>
+
+    </div>
+  )
+}
+
+function GraficoHorarios({
+  dados,
+}: {
+  dados: {
+    hora: number
+    total: number
+  }[]
+}) {
+  const maximo =
+    Math.max(
+      ...dados.map(
+        (item) => item.total
+      ),
+      1
+    )
+
+  return (
+    <div className="grid grid-cols-6 gap-2">
+
+      {dados.map((item) => {
+        const intensidade =
+          item.total /
+          maximo
+
+        return (
+          <div
+            key={
+              item.hora
+            }
+            className="group"
+          >
+
+            <div
+              className="flex aspect-square items-center justify-center rounded-lg bg-sky-500 text-[9px] font-medium text-white transition"
+              style={{
+                opacity:
+                  item.total === 0
+                    ? 0.08
+                    : Math.max(
+                        0.18,
+                        intensidade
+                      ),
+              }}
+              title={`${item.hora}h: ${item.total} acessos`}
+            >
+              {item.hora}h
+            </div>
+
+          </div>
+        )
+      })}
+
+    </div>
+  )
+}
+
+function Vazio() {
+  return (
+    <div className="py-6 text-center">
+
+      <BarChart3 className="mx-auto mb-2 h-5 w-5 text-muted-foreground/50" />
+
+      <p className="text-xs text-muted-foreground">
+        Ainda não há dados suficientes.
+      </p>
+
     </div>
   )
 }
