@@ -10,9 +10,11 @@ import {
   CheckCircle2,
   Target,
   Plus,
+  EyeOff,
 } from "lucide-react"
 import { supabase } from "@/lib/supabase"
 import { trackEvent } from "@/lib/analytics"
+import { isAdminEmail } from "@/lib/admin"
 
 type TemaQuestao = {
   id: string
@@ -21,11 +23,13 @@ type TemaQuestao = {
   descricao: string | null
   created_at: string
   total_questoes: number
+  visivel: boolean
 }
 
 export default function QuestoesPage() {
   const [quizzes, setQuizzes] = useState<TemaQuestao[]>([])
   const [loading, setLoading] = useState(true)
+  const [isAdmin, setIsAdmin] = useState(false)
 
   useEffect(() => {
     trackEvent({
@@ -39,49 +43,103 @@ export default function QuestoesPage() {
       },
     })
 
-    async function fetchQuizzes() {
+    async function carregarPagina() {
       setLoading(true)
 
-      const { data: temas, error: temasError } = await supabase
+      const { data: userData } = await supabase.auth.getUser()
+
+      const email = userData.user?.email
+
+      const admin =
+        !!email && isAdminEmail(email)
+
+      setIsAdmin(admin)
+
+      let query = supabase
         .from("temas_questoes")
         .select("*")
-        .order("created_at", { ascending: false })
+        .order("created_at", {
+          ascending: false,
+        })
+
+      /*
+       * Alunos só enxergam temas liberados.
+       *
+       * Admin vê todos, inclusive os ocultos.
+       */
+      if (!admin) {
+        query = query.eq("visivel", true)
+      }
+
+      const {
+        data: temas,
+        error: temasError,
+      } = await query
 
       if (temasError) {
-        console.error("Erro ao buscar temas:", temasError.message)
+        console.error(
+          "Erro ao buscar temas:",
+          temasError.message
+        )
+
         setLoading(false)
         return
       }
 
-      const temasComContagem = await Promise.all(
-        (temas || []).map(async (tema) => {
-          const { count, error: countError } = await supabase
-            .from("questoes")
-            .select("*", { count: "exact", head: true })
-            .eq("tema_id", tema.id)
+      const temasComContagem =
+        await Promise.all(
+          (temas || []).map(
+            async (tema) => {
+              const {
+                count,
+                error: countError,
+              } = await supabase
+                .from("questoes")
+                .select("*", {
+                  count: "exact",
+                  head: true,
+                })
+                .eq(
+                  "tema_id",
+                  tema.id
+                )
 
-          if (countError) {
-            console.error(
-              "Erro ao contar questões:",
-              countError.message
-            )
-          }
+              if (countError) {
+                console.error(
+                  "Erro ao contar questões:",
+                  countError.message
+                )
+              }
 
-          return {
-            ...tema,
-            total_questoes: count || 0,
-          }
-        })
+              return {
+                ...tema,
+                total_questoes:
+                  count || 0,
+
+                /*
+                 * Compatibilidade caso existam
+                 * registros antigos sem valor.
+                 */
+                visivel:
+                  tema.visivel !== false,
+              }
+            }
+          )
+        )
+
+      setQuizzes(
+        temasComContagem
       )
 
-      setQuizzes(temasComContagem)
       setLoading(false)
     }
 
-    fetchQuizzes()
+    carregarPagina()
   }, [])
 
-  function registrarAberturaQuiz(quiz: TemaQuestao) {
+  function registrarAberturaQuiz(
+    quiz: TemaQuestao
+  ) {
     trackEvent({
       event_type: "quiz_open",
       page_path: "/questoes",
@@ -96,8 +154,14 @@ export default function QuestoesPage() {
       value: quiz.total_questoes,
 
       metadata: {
-        descricao: quiz.descricao || null,
-        total_questoes: quiz.total_questoes,
+        descricao:
+          quiz.descricao || null,
+
+        total_questoes:
+          quiz.total_questoes,
+
+        visivel:
+          quiz.visivel,
       },
     })
   }
@@ -141,9 +205,18 @@ export default function QuestoesPage() {
               </AdminOnly>
 
             </div>
+
+            {isAdmin && (
+              <div className="mt-4 inline-flex items-center gap-2 rounded-xl border border-amber-500/20 bg-amber-500/10 px-3 py-2 text-xs text-amber-400">
+                <EyeOff className="h-3.5 w-3.5" />
+
+                Temas ocultos aparecem apenas para administradores.
+              </div>
+            )}
+
           </section>
 
-          {/* CONTEÚDO */}
+          {/* CARREGAMENTO */}
           {loading ? (
 
             <div className="rounded-2xl border border-border bg-card p-8 text-center">
@@ -154,6 +227,7 @@ export default function QuestoesPage() {
 
           ) : quizzes.length === 0 ? (
 
+            /* SEM QUESTÕES */
             <div className="rounded-2xl border border-border bg-card p-8 text-center">
 
               <div className="inline-flex items-center justify-center w-14 h-14 rounded-2xl bg-sky-500/10 mb-4">
@@ -161,65 +235,135 @@ export default function QuestoesPage() {
               </div>
 
               <h3 className="text-lg font-medium text-foreground mb-1">
-                Nenhuma questão ainda
+                Nenhuma questão disponível
               </h3>
 
               <p className="text-sm text-muted-foreground">
-                As questões aparecerão aqui quando forem adicionadas.
+                Os temas de questões aparecerão aqui quando forem liberados.
               </p>
 
             </div>
 
           ) : (
 
+            /* LISTA DE TEMAS */
             <section className="grid sm:grid-cols-2 gap-4">
 
-              {quizzes.map((quiz) => (
+              {quizzes.map((quiz) => {
 
-                <Link
-                  key={quiz.id}
-                  href={`/questoes/${quiz.slug}`}
-                  onClick={() => registrarAberturaQuiz(quiz)}
-                  className="group relative overflow-hidden rounded-2xl bg-card border border-border p-5 sm:p-6 transition-all duration-300 hover:-translate-y-1 hover:border-sky-500/40 hover:shadow-xl hover:shadow-sky-500/10"
-                >
+                const card = (
+                  <div
+                    className={`group relative overflow-hidden rounded-2xl bg-card border p-5 sm:p-6 transition-all duration-300 ${
+                      quiz.visivel
+                        ? "border-border hover:-translate-y-1 hover:border-sky-500/40 hover:shadow-xl hover:shadow-sky-500/10"
+                        : "border-amber-500/20 opacity-75"
+                    }`}
+                  >
 
-                  <div className="absolute left-0 top-5 bottom-5 w-1 rounded-r-full bg-sky-500/0 transition group-hover:bg-sky-400" />
+                    <div
+                      className={`absolute left-0 top-5 bottom-5 w-1 rounded-r-full transition ${
+                        quiz.visivel
+                          ? "bg-sky-500/0 group-hover:bg-sky-400"
+                          : "bg-amber-400"
+                      }`}
+                    />
 
-                  <div className="inline-flex items-center justify-center w-12 h-12 rounded-2xl bg-sky-500/10 text-sky-400 mb-4 transition group-hover:scale-110 group-hover:bg-sky-500/20">
-                    <Target className="h-6 w-6" />
-                  </div>
+                    {/* TOPO */}
+                    <div className="flex items-start justify-between gap-3">
 
-                  <div className="space-y-2">
+                      <div
+                        className={`inline-flex items-center justify-center w-12 h-12 rounded-2xl mb-4 transition ${
+                          quiz.visivel
+                            ? "bg-sky-500/10 text-sky-400 group-hover:scale-110 group-hover:bg-sky-500/20"
+                            : "bg-amber-500/10 text-amber-400"
+                        }`}
+                      >
+                        {quiz.visivel ? (
+                          <Target className="h-6 w-6" />
+                        ) : (
+                          <EyeOff className="h-5 w-5" />
+                        )}
+                      </div>
 
-                    <h2 className="text-lg sm:text-xl font-semibold text-foreground group-hover:text-sky-400 transition-colors">
-                      {quiz.titulo}
-                    </h2>
+                      {!quiz.visivel && (
+                        <span className="inline-flex items-center gap-1.5 rounded-full border border-amber-500/20 bg-amber-500/10 px-2.5 py-1 text-[10px] font-semibold text-amber-400">
+                          <EyeOff className="h-3 w-3" />
+                          Oculto
+                        </span>
+                      )}
 
-                    <p className="text-sm text-muted-foreground line-clamp-2">
-                      {quiz.descricao ||
-                        "Sem descrição disponível."}
-                    </p>
+                    </div>
 
-                    <div className="flex items-center justify-between pt-3">
+                    <div className="space-y-2">
 
-                      <span className="inline-flex items-center gap-1.5 text-sm text-muted-foreground">
-                        <CheckCircle2 className="h-4 w-4 text-sky-400" />
+                      <h2
+                        className={`text-lg sm:text-xl font-semibold transition-colors ${
+                          quiz.visivel
+                            ? "text-foreground group-hover:text-sky-400"
+                            : "text-foreground"
+                        }`}
+                      >
+                        {quiz.titulo}
+                      </h2>
 
-                        {quiz.total_questoes}{" "}
-                        {quiz.total_questoes === 1
-                          ? "questão"
-                          : "questões"}
-                      </span>
+                      <p className="text-sm text-muted-foreground line-clamp-2">
+                        {quiz.descricao ||
+                          "Sem descrição disponível."}
+                      </p>
 
-                      <ArrowRight className="h-5 w-5 text-muted-foreground group-hover:text-sky-400 group-hover:translate-x-1 transition-all" />
+                      <div className="flex items-center justify-between pt-3">
+
+                        <span className="inline-flex items-center gap-1.5 text-sm text-muted-foreground">
+
+                          <CheckCircle2
+                            className={`h-4 w-4 ${
+                              quiz.visivel
+                                ? "text-sky-400"
+                                : "text-amber-400"
+                            }`}
+                          />
+
+                          {quiz.total_questoes}{" "}
+                          {quiz.total_questoes === 1
+                            ? "questão"
+                            : "questões"}
+
+                        </span>
+
+                        {quiz.visivel ? (
+                          <ArrowRight className="h-5 w-5 text-muted-foreground group-hover:text-sky-400 group-hover:translate-x-1 transition-all" />
+                        ) : (
+                          <span className="text-[10px] font-medium text-amber-400">
+                            Somente admin
+                          </span>
+                        )}
+
+                      </div>
 
                     </div>
 
                   </div>
+                )
 
-                </Link>
-
-              ))}
+                /*
+                 * Admin pode abrir tema oculto normalmente.
+                 *
+                 * Alunos nunca recebem temas ocultos na consulta.
+                 */
+                return (
+                  <Link
+                    key={quiz.id}
+                    href={`/questoes/${quiz.slug}`}
+                    onClick={() =>
+                      registrarAberturaQuiz(
+                        quiz
+                      )
+                    }
+                  >
+                    {card}
+                  </Link>
+                )
+              })}
 
             </section>
 
