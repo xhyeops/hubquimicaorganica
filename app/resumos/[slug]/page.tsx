@@ -1,11 +1,16 @@
 "use client"
 
 import { trackEvent } from "@/lib/analytics"
-import { useEffect, useState } from "react"
+import { useEffect, useRef, useState } from "react"
 import { useParams } from "next/navigation"
 import Link from "next/link"
 import ReactMarkdown from "react-markdown"
-import { ArrowLeft, BookOpen, FileText, Pencil } from "lucide-react"
+import {
+  ArrowLeft,
+  BookOpen,
+  FileText,
+  Pencil,
+} from "lucide-react"
 
 import { Sidebar } from "@/components/sidebar"
 import { AdminOnly } from "@/components/AdminOnly"
@@ -22,10 +27,17 @@ type Resumo = {
 
 export default function ResumoDetailPage() {
   const params = useParams()
-  const slug = Array.isArray(params.slug) ? params.slug[0] : params.slug
+
+  const slug = Array.isArray(params.slug)
+    ? params.slug[0]
+    : params.slug
 
   const [resumo, setResumo] = useState<Resumo | null>(null)
   const [loading, setLoading] = useState(true)
+
+  const startTimeRef = useRef<number>(Date.now())
+
+  const progressRef = useRef<Set<number>>(new Set())
 
   useEffect(() => {
     async function carregarResumo() {
@@ -41,28 +53,219 @@ export default function ResumoDetailPage() {
 
       if (error || !data) {
         console.error("Erro ao carregar resumo:", error)
+
         setResumo(null)
+
         setLoading(false)
+
         return
       }
 
       setResumo(data)
+
+      startTimeRef.current = Date.now()
+
+      progressRef.current = new Set()
+
       setLoading(false)
     }
 
     carregarResumo()
   }, [slug])
 
-  useEffect(() => {
-  if (!resumo) return
+  /*
+   * ============================================================
+   * VISUALIZAÇÃO DO RESUMO
+   * ============================================================
+   */
 
-  trackEvent({
-    event_type: "resumo_view",
-    section: "resumos",
-    slug: resumo.slug,
-    title: resumo.titulo,
-  })
-}, [resumo])
+  useEffect(() => {
+    if (!resumo) return
+
+    trackEvent({
+      event_type: "resumo_view",
+
+      page_path: `/resumos/${resumo.slug}`,
+
+      section: "resumos",
+
+      slug: resumo.slug,
+
+      title: resumo.titulo,
+
+      content_id: resumo.id,
+
+      content_type: "resumo",
+
+      metadata: {
+        categoria: resumo.categoria || "Geral",
+        descricao: resumo.description || null,
+      },
+    })
+  }, [resumo])
+
+  /*
+   * ============================================================
+   * PROGRESSO DE LEITURA
+   * ============================================================
+   *
+   * Registra apenas uma vez quando o usuário alcança:
+   *
+   * 25%
+   * 50%
+   * 75%
+   * 100%
+   */
+
+  useEffect(() => {
+    if (!resumo) return
+
+    function handleScroll() {
+      const scrollTop =
+        window.scrollY ||
+        document.documentElement.scrollTop
+
+      const documentHeight =
+        document.documentElement.scrollHeight -
+        window.innerHeight
+
+      if (documentHeight <= 0) return
+
+      const percentage = Math.min(
+        100,
+        Math.round(
+          (scrollTop / documentHeight) * 100
+        )
+      )
+
+      const milestones = [25, 50, 75, 100]
+
+      milestones.forEach((milestone) => {
+        if (
+          percentage >= milestone &&
+          !progressRef.current.has(milestone)
+        ) {
+          progressRef.current.add(milestone)
+
+          const durationSeconds = Math.max(
+            0,
+            Math.round(
+              (Date.now() - startTimeRef.current) / 1000
+            )
+          )
+
+          trackEvent({
+            event_type: "resumo_read_progress",
+
+            page_path: `/resumos/${resumo.slug}`,
+
+            section: "resumos",
+
+            slug: resumo.slug,
+
+            title: resumo.titulo,
+
+            content_id: resumo.id,
+
+            content_type: "resumo",
+
+            value: milestone,
+
+            duration_seconds: durationSeconds,
+
+            metadata: {
+              categoria: resumo.categoria || "Geral",
+              progresso: milestone,
+            },
+          })
+        }
+      })
+    }
+
+    window.addEventListener("scroll", handleScroll, {
+      passive: true,
+    })
+
+    /*
+     * Já calcula também no carregamento,
+     * caso o conteúdo seja muito curto.
+     */
+    handleScroll()
+
+    return () => {
+      window.removeEventListener(
+        "scroll",
+        handleScroll
+      )
+    }
+  }, [resumo])
+
+  /*
+   * ============================================================
+   * SAÍDA DO RESUMO / TEMPO DE LEITURA
+   * ============================================================
+   */
+
+  useEffect(() => {
+    if (!resumo) return
+
+    const registrarSaida = () => {
+      const durationSeconds = Math.max(
+        0,
+        Math.round(
+          (Date.now() - startTimeRef.current) / 1000
+        )
+      )
+
+      const maiorProgresso = Math.max(
+        0,
+        ...Array.from(progressRef.current)
+      )
+
+      trackEvent({
+        event_type: "resumo_exit",
+
+        page_path: `/resumos/${resumo.slug}`,
+
+        section: "resumos",
+
+        slug: resumo.slug,
+
+        title: resumo.titulo,
+
+        content_id: resumo.id,
+
+        content_type: "resumo",
+
+        value: maiorProgresso,
+
+        duration_seconds: durationSeconds,
+
+        metadata: {
+          categoria: resumo.categoria || "Geral",
+          progresso_maximo: maiorProgresso,
+        },
+      })
+    }
+
+    /*
+     * pagehide funciona melhor que beforeunload
+     * para navegação, fechamento da aba e mobile.
+     */
+    window.addEventListener(
+      "pagehide",
+      registrarSaida
+    )
+
+    return () => {
+      window.removeEventListener(
+        "pagehide",
+        registrarSaida
+      )
+
+      registrarSaida()
+    }
+  }, [resumo])
 
   if (loading) {
     return (
@@ -87,6 +290,7 @@ export default function ResumoDetailPage() {
 
         <main className="lg:pl-64 pt-14 lg:pt-0">
           <div className="max-w-4xl mx-auto px-4 sm:px-6 py-8">
+
             <Link
               href="/resumos"
               className="inline-flex items-center text-sm text-muted-foreground hover:text-sky-400 mb-8 transition"
@@ -96,8 +300,11 @@ export default function ResumoDetailPage() {
             </Link>
 
             <div className="rounded-2xl border border-border bg-card p-8 text-center">
-              <p className="text-muted-foreground">Resumo não encontrado.</p>
+              <p className="text-muted-foreground">
+                Resumo não encontrado.
+              </p>
             </div>
+
           </div>
         </main>
       </div>
@@ -109,7 +316,9 @@ export default function ResumoDetailPage() {
       <Sidebar />
 
       <main className="lg:pl-64 pt-14 lg:pt-0">
+
         <div className="max-w-4xl mx-auto px-4 sm:px-6 py-8">
+
           <Link
             href="/resumos"
             className="inline-flex items-center text-sm text-muted-foreground hover:text-sky-400 mb-7 transition"
@@ -119,13 +328,17 @@ export default function ResumoDetailPage() {
           </Link>
 
           <div className="mb-7">
+
             <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 mb-4">
+
               <div className="flex items-center gap-3">
+
                 <div className="w-11 h-11 flex shrink-0 items-center justify-center rounded-xl bg-gradient-to-br from-sky-500 to-cyan-500 text-white shadow-lg shadow-sky-500/20">
                   <FileText className="h-5 w-5" />
                 </div>
 
                 <div>
+
                   <h1 className="text-2xl sm:text-3xl font-bold leading-tight text-foreground">
                     {resumo.titulo}
                   </h1>
@@ -135,7 +348,9 @@ export default function ResumoDetailPage() {
                       {resumo.description}
                     </p>
                   )}
+
                 </div>
+
               </div>
 
               <AdminOnly>
@@ -147,6 +362,7 @@ export default function ResumoDetailPage() {
                   Editar
                 </Link>
               </AdminOnly>
+
             </div>
 
             {resumo.categoria && (
@@ -155,10 +371,13 @@ export default function ResumoDetailPage() {
                 {resumo.categoria}
               </span>
             )}
+
           </div>
 
           <article className="rounded-2xl border border-border bg-card p-5 sm:p-7">
+
             <div className="mx-auto max-w-3xl">
+
               <ReactMarkdown
                 components={{
                   h1: ({ children }) => (
@@ -179,13 +398,22 @@ export default function ResumoDetailPage() {
                     </h3>
                   ),
 
-                  p: ({ node, children }: any) => {
-                    const hasImage = node?.children?.some(
-                      (child: any) => child.tagName === "img"
-                    )
+                  p: ({
+                    node,
+                    children,
+                  }: any) => {
+                    const hasImage =
+                      node?.children?.some(
+                        (child: any) =>
+                          child.tagName === "img"
+                      )
 
                     if (hasImage) {
-                      return <div className="my-5">{children}</div>
+                      return (
+                        <div className="my-5">
+                          {children}
+                        </div>
+                      )
                     }
 
                     return (
@@ -213,7 +441,9 @@ export default function ResumoDetailPage() {
                     </ol>
                   ),
 
-                  li: ({ children }) => <li>{children}</li>,
+                  li: ({ children }) => (
+                    <li>{children}</li>
+                  ),
 
                   blockquote: ({ children }) => (
                     <blockquote className="my-5 rounded-xl border-l-4 border-sky-500 bg-sky-500/10 px-4 py-3 text-[15.5px] leading-7 text-foreground/90">
@@ -229,7 +459,10 @@ export default function ResumoDetailPage() {
                     />
                   ),
 
-                  a: ({ href, children }) => (
+                  a: ({
+                    href,
+                    children,
+                  }) => (
                     <a
                       href={href}
                       target="_blank"
@@ -240,7 +473,9 @@ export default function ResumoDetailPage() {
                     </a>
                   ),
 
-                  hr: () => <hr className="my-7 border-border" />,
+                  hr: () => (
+                    <hr className="my-7 border-border" />
+                  ),
 
                   code: ({ children }) => (
                     <code className="rounded-md bg-secondary px-1.5 py-0.5 text-sm text-sky-500 dark:text-sky-300">
@@ -251,11 +486,14 @@ export default function ResumoDetailPage() {
               >
                 {resumo.conteudo || ""}
               </ReactMarkdown>
+
             </div>
+
           </article>
+
         </div>
+
       </main>
     </div>
   )
 }
-
