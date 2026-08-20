@@ -38,6 +38,10 @@ export default function ResumosPage() {
       page_path: "/resumos",
       section: "resumos",
       title: "Página de resumos",
+      content_type: "resumo_list",
+      metadata: {
+        pagina: "resumos",
+      },
     })
 
     carregarResumos()
@@ -62,8 +66,36 @@ export default function ResumosPage() {
     setLoading(false)
   }
 
-  async function moverResumo(index: number, direcao: "cima" | "baixo") {
-    const novoIndex = direcao === "cima" ? index - 1 : index + 1
+  function registrarAberturaResumo(resumo: Resumo, index: number) {
+    trackEvent({
+      event_type: "resumo_open",
+      page_path: "/resumos",
+      section: "resumos",
+
+      slug: resumo.slug,
+      title: resumo.titulo,
+
+      content_id: resumo.id,
+      content_type: "resumo",
+
+      value: index + 1,
+
+      metadata: {
+        categoria: resumo.categoria || "Geral",
+        descricao: resumo.description || null,
+        posicao_lista: index + 1,
+        total_resumos: resumos.length,
+        ordem: resumo.ordem ?? null,
+      },
+    })
+  }
+
+  async function moverResumo(
+    index: number,
+    direcao: "cima" | "baixo"
+  ) {
+    const novoIndex =
+      direcao === "cima" ? index - 1 : index + 1
 
     if (novoIndex < 0 || novoIndex >= resumos.length) return
 
@@ -91,7 +123,9 @@ export default function ResumosPage() {
 
     const resultados = await Promise.all(atualizacoes)
 
-    const erro = resultados.find((resultado) => resultado.error)
+    const erro = resultados.find(
+      (resultado) => resultado.error
+    )
 
     if (erro?.error) {
       console.error("Erro ao reordenar:", erro.error)
@@ -114,13 +148,17 @@ export default function ResumosPage() {
 
       <main className="lg:pl-64 pt-14 lg:pt-0">
         <div className="max-w-4xl mx-auto px-4 sm:px-6 py-6 sm:py-8 lg:py-12">
+
+          {/* CABEÇALHO */}
           <div className="mb-8 sm:mb-10">
+
             <div className="inline-flex items-center gap-2 px-3 py-1.5 mb-4 rounded-full bg-sky-500/10 text-sky-600 dark:text-sky-400 text-sm font-medium">
               <FileText className="h-3.5 w-3.5" />
               Conteúdo de Estudo
             </div>
 
             <div className="flex flex-col sm:flex-row sm:items-start sm:justify-between gap-4">
+
               <div>
                 <h1 className="text-3xl sm:text-4xl font-bold text-foreground mb-2">
                   Resumos
@@ -134,13 +172,18 @@ export default function ResumosPage() {
 
               <AdminOnly>
                 <div className="flex flex-col sm:flex-row gap-3">
+
                   <button
                     type="button"
-                    onClick={() => setModoReordenar(!modoReordenar)}
+                    onClick={() =>
+                      setModoReordenar(!modoReordenar)
+                    }
                     className="inline-flex h-12 items-center justify-center gap-2 rounded-2xl border border-sky-500/30 bg-sky-500/10 px-5 text-sm font-semibold text-sky-500 shadow-sm shadow-sky-500/10 transition-all duration-300 hover:-translate-y-0.5 hover:border-sky-400/60 hover:bg-sky-500/15 hover:shadow-lg hover:shadow-sky-500/15 dark:text-sky-400"
                   >
                     <ListOrdered size={18} />
-                    {modoReordenar ? "Concluir" : "Reordenar"}
+                    {modoReordenar
+                      ? "Concluir"
+                      : "Reordenar"}
                   </button>
 
                   <Link
@@ -150,8 +193,10 @@ export default function ResumosPage() {
                     <Plus size={18} />
                     Novo resumo
                   </Link>
+
                 </div>
               </AdminOnly>
+
             </div>
 
             {modoReordenar && (
@@ -165,14 +210,23 @@ export default function ResumosPage() {
                 Salvando nova ordem...
               </p>
             )}
+
           </div>
 
+          {/* ESTADO DE CARREGAMENTO */}
           {loading ? (
+
             <div className="rounded-2xl border border-border bg-card p-8 text-center">
-              <p className="text-muted-foreground">Carregando resumos...</p>
+              <p className="text-muted-foreground">
+                Carregando resumos...
+              </p>
             </div>
+
           ) : resumos.length === 0 ? (
+
+            /* SEM RESUMOS */
             <div className="rounded-2xl border border-border bg-card p-8 text-center">
+
               <BookOpen className="mx-auto mb-4 h-8 w-8 text-sky-400" />
 
               <p className="font-medium text-foreground">
@@ -180,26 +234,45 @@ export default function ResumosPage() {
               </p>
 
               <p className="mt-1 text-sm text-muted-foreground">
-                Quando novos conteúdos forem adicionados, eles aparecerão aqui.
+                Quando novos conteúdos forem adicionados,
+                eles aparecerão aqui.
               </p>
+
             </div>
+
           ) : (
+
+            /* LISTA DE RESUMOS */
             <div className="grid gap-4">
+
               {resumos.map((resumo, index) => (
+
                 <div
                   key={resumo.id}
                   className="group rounded-2xl bg-card border border-border p-4 sm:p-6 transition-all duration-300 hover:-translate-y-1 hover:border-sky-500/40 hover:shadow-lg hover:shadow-sky-500/10"
                 >
+
                   <div className="flex gap-4">
+
                     <div className="hidden sm:flex w-12 h-12 shrink-0 items-center justify-center rounded-xl bg-sky-500/10 text-sky-400 font-bold">
-                      {String(resumos.length - index).padStart(2, "0")}
+                      {String(
+                        resumos.length - index
+                      ).padStart(2, "0")}
                     </div>
 
                     <Link
                       href={`/resumos/${resumo.slug}`}
+                      onClick={() =>
+                        registrarAberturaResumo(
+                          resumo,
+                          index
+                        )
+                      }
                       className="flex flex-1 min-w-0 gap-4"
                     >
+
                       <div className="flex-1 min-w-0">
+
                         <span className="inline-flex rounded-full bg-sky-500/10 px-2.5 py-1 text-xs font-medium text-sky-600 dark:text-sky-400">
                           {resumo.categoria || "Geral"}
                         </span>
@@ -213,20 +286,32 @@ export default function ResumosPage() {
                             {resumo.description}
                           </p>
                         )}
+
                       </div>
 
                       {!modoReordenar && (
                         <ArrowRight className="h-5 w-5 shrink-0 text-muted-foreground opacity-60 transition group-hover:translate-x-1 group-hover:text-sky-400 group-hover:opacity-100" />
                       )}
+
                     </Link>
 
                     {modoReordenar && (
                       <AdminOnly>
+
                         <div className="flex shrink-0 flex-col gap-2">
+
                           <button
                             type="button"
-                            disabled={index === 0 || salvando}
-                            onClick={() => moverResumo(index, "cima")}
+                            disabled={
+                              index === 0 ||
+                              salvando
+                            }
+                            onClick={() =>
+                              moverResumo(
+                                index,
+                                "cima"
+                              )
+                            }
                             className="flex h-10 w-10 items-center justify-center rounded-xl border border-sky-500/20 bg-sky-500/10 text-sky-500 transition-all duration-300 hover:-translate-y-0.5 hover:border-sky-400/60 hover:bg-sky-500/20 hover:text-sky-400 disabled:cursor-not-allowed disabled:opacity-30 disabled:hover:translate-y-0"
                           >
                             <ArrowUp size={18} />
@@ -235,21 +320,35 @@ export default function ResumosPage() {
                           <button
                             type="button"
                             disabled={
-                              index === resumos.length - 1 || salvando
+                              index ===
+                                resumos.length - 1 ||
+                              salvando
                             }
-                            onClick={() => moverResumo(index, "baixo")}
+                            onClick={() =>
+                              moverResumo(
+                                index,
+                                "baixo"
+                              )
+                            }
                             className="flex h-10 w-10 items-center justify-center rounded-xl border border-sky-500/20 bg-sky-500/10 text-sky-500 transition-all duration-300 hover:-translate-y-0.5 hover:border-sky-400/60 hover:bg-sky-500/20 hover:text-sky-400 disabled:cursor-not-allowed disabled:opacity-30 disabled:hover:translate-y-0"
                           >
                             <ArrowDown size={18} />
                           </button>
+
                         </div>
+
                       </AdminOnly>
                     )}
+
                   </div>
+
                 </div>
+
               ))}
+
             </div>
           )}
+
         </div>
       </main>
     </div>
