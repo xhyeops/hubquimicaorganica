@@ -53,7 +53,9 @@ export function Sidebar() {
   const router = useRouter()
 
   const [isOpen, setIsOpen] = useState(false)
+
   const { theme, setTheme } = useTheme()
+
   const [mounted, setMounted] = useState(false)
   const [user, setUser] = useState<any>(null)
 
@@ -280,6 +282,7 @@ export function Sidebar() {
               className="mt-3 flex w-full items-center justify-center gap-2 rounded-xl border border-rose-500/15 bg-rose-500/[0.06] px-3 py-2 text-xs font-medium text-rose-400 transition hover:bg-rose-500/10"
             >
               <LogOut className="h-3.5 w-3.5" />
+
               Sair
             </button>
           </div>
@@ -293,24 +296,39 @@ export function Sidebar() {
       <Link
         href="/"
         onClick={() => setIsOpen(false)}
-        className="group flex items-center gap-3"
+        className="group relative flex items-center gap-3 rounded-2xl px-2 py-2 transition-all duration-300 hover:bg-sky-500/[0.05]"
       >
-        <div className="relative">
-          <div className="absolute inset-0 rounded-2xl bg-sky-400/25 blur-lg opacity-60 transition group-hover:opacity-90" />
+        {/* ÍCONE */}
+        <div className="relative shrink-0">
 
-          <div className="relative flex h-11 w-11 items-center justify-center rounded-2xl border border-sky-400/20 bg-gradient-to-br from-sky-500 to-cyan-400 shadow-lg shadow-sky-500/20">
-            <Atom className="h-5 w-5 text-white" />
+          {/* GLOW EXTERNO */}
+          <div className="absolute -inset-2 rounded-3xl bg-sky-400/20 blur-xl opacity-70 transition-all duration-500 group-hover:bg-sky-400/30 group-hover:opacity-100" />
+
+          {/* ANEL */}
+          <div className="absolute -inset-1 rounded-[1.2rem] border border-sky-400/10 opacity-40 transition duration-300 group-hover:border-sky-400/25 group-hover:opacity-100" />
+
+          {/* CAIXA PRINCIPAL */}
+          <div className="chem-glow relative flex h-12 w-12 items-center justify-center rounded-2xl border border-sky-300/20 bg-gradient-to-br from-sky-400 via-sky-500 to-cyan-400 shadow-lg shadow-sky-500/25 transition-all duration-300 group-hover:scale-[1.05] group-hover:shadow-xl group-hover:shadow-sky-500/30">
+
+            {/* ÁTOMO GIRANDO */}
+            <div className="chem-atom-spin flex items-center justify-center">
+              <Atom className="h-5 w-5 text-white" />
+            </div>
+
           </div>
         </div>
 
-        <div className="min-w-0">
-          <h1 className="truncate text-sm font-bold text-foreground">
+        {/* TEXTO */}
+        <div className="min-w-0 flex-1">
+
+          <h1 className="truncate text-[15px] font-bold text-foreground transition-colors duration-300 group-hover:text-sky-400">
             Química Orgânica
           </h1>
 
-          <p className="mt-0.5 text-[10px] text-muted-foreground">
+          <p className="mt-0.5 text-[10px] font-medium text-muted-foreground">
             Monitoria Acadêmica
           </p>
+
         </div>
       </Link>
     )
@@ -318,9 +336,15 @@ export function Sidebar() {
 
   return (
     <>
-      {/* MOBILE HEADER */}
-      <header className="fixed left-0 right-0 top-0 z-50 flex h-14 items-center justify-between border-b border-border/70 bg-background/85 px-4 backdrop-blur-xl lg:hidden">
-        <Brand />
+      {/* ===================================================== */}
+      {/* MOBILE HEADER                                        */}
+      {/* ===================================================== */}
+
+      <header className="fixed left-0 right-0 top-0 z-50 flex h-14 items-center justify-between border-b border-border/70 bg-background/85 px-3 backdrop-blur-xl lg:hidden">
+
+        <div className="scale-[0.9] origin-left">
+          <Brand />
+        </div>
 
         <div className="flex items-center gap-1">
           {mounted && (
@@ -329,7 +353,11 @@ export function Sidebar() {
               size="icon"
               className="h-9 w-9 rounded-xl"
               onClick={() =>
-                setTheme(theme === "dark" ? "light" : "dark")
+                setTheme(
+                  theme === "dark"
+                    ? "light"
+                    : "dark"
+                )
               }
             >
               {theme === "dark" ? (
@@ -344,7 +372,9 @@ export function Sidebar() {
             variant="ghost"
             size="icon"
             className="h-9 w-9 rounded-xl"
-            onClick={() => setIsOpen(!isOpen)}
+            onClick={() =>
+              setIsOpen(!isOpen)
+            }
           >
             {isOpen ? (
               <X className="h-5 w-5" />
@@ -355,9 +385,14 @@ export function Sidebar() {
         </div>
       </header>
 
-      {/* MOBILE OVERLAY */}
+      {/* ===================================================== */}
+      {/* MOBILE OVERLAY                                       */}
+      {/* ===================================================== */}
+
       <div
-        onClick={() => setIsOpen(false)}
+        onClick={() =>
+          setIsOpen(false)
+        }
         className={cn(
           "fixed inset-0 z-40 bg-black/40 backdrop-blur-sm transition-opacity duration-300 lg:hidden",
           isOpen
@@ -366,7 +401,10 @@ export function Sidebar() {
         )}
       />
 
-      {/* MOBILE SIDEBAR */}
+      {/* ===================================================== */}
+      {/* MOBILE SIDEBAR                                       */}
+      {/* ===================================================== */}
+
       <aside
         className={cn(
           "fixed bottom-0 left-0 top-14 z-50 flex w-[86vw] max-w-[300px] flex-col border-r border-border/70 bg-background/95 shadow-2xl shadow-black/20 backdrop-blur-2xl transition-all duration-300 ease-out lg:hidden",
@@ -376,47 +414,77 @@ export function Sidebar() {
         )}
       >
         <nav className="flex-1 overflow-y-auto px-3 py-5">
+
           <div className="mb-3 flex items-center justify-between px-3">
+
             <p className="text-[9px] font-semibold uppercase tracking-[0.16em] text-muted-foreground/60">
               Estudar
             </p>
 
             <span className="h-1.5 w-1.5 rounded-full bg-sky-400 shadow-[0_0_8px_rgba(56,189,248,0.7)]" />
+
           </div>
 
           <NavLinks />
 
           <AdminNavigation />
+
         </nav>
 
         <div className="border-t border-border/70 bg-background/70 p-3 backdrop-blur-xl">
+
           <FooterContent />
+
         </div>
       </aside>
 
-      {/* DESKTOP SIDEBAR */}
+      {/* ===================================================== */}
+      {/* DESKTOP SIDEBAR                                      */}
+      {/* ===================================================== */}
+
       <aside className="fixed bottom-0 left-0 top-0 z-40 hidden w-64 flex-col border-r border-border/70 bg-background/75 backdrop-blur-xl lg:flex">
-        <div className="border-b border-border/70 px-5 py-5">
-          <Brand />
+
+        {/* MARCA / IDENTIDADE */}
+        <div className="relative overflow-hidden border-b border-border/70 px-3 py-4">
+
+          {/* FUNDO */}
+          <div className="pointer-events-none absolute inset-0 bg-gradient-to-r from-sky-500/[0.07] via-sky-500/[0.025] to-transparent" />
+
+          {/* GLOW SUPERIOR */}
+          <div className="pointer-events-none absolute -left-12 -top-16 h-36 w-36 rounded-full bg-sky-500/10 blur-3xl" />
+
+          <div className="relative">
+            <Brand />
+          </div>
+
         </div>
 
+        {/* NAVEGAÇÃO */}
         <nav className="flex-1 overflow-y-auto px-3 py-5">
+
           <div className="mb-3 flex items-center justify-between px-3">
+
             <p className="text-[9px] font-semibold uppercase tracking-[0.16em] text-muted-foreground/60">
               Estudar
             </p>
 
             <span className="h-1.5 w-1.5 rounded-full bg-sky-400 shadow-[0_0_8px_rgba(56,189,248,0.7)]" />
+
           </div>
 
           <NavLinks />
 
           <AdminNavigation />
+
         </nav>
 
+        {/* RODAPÉ */}
         <div className="border-t border-border/70 bg-background/40 p-3">
+
           <FooterContent />
+
         </div>
+
       </aside>
     </>
   )
