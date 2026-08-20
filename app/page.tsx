@@ -13,6 +13,8 @@ import {
   Play,
   Sparkles,
   Target,
+  Users,
+  GraduationCap,
 } from "lucide-react"
 import { supabase } from "@/lib/supabase"
 
@@ -24,6 +26,15 @@ type FeedItem = {
   criado_em: string
   href: string
 }
+
+/*
+ * ============================================================
+ * DESTAQUE DA PÁGINA INICIAL
+ * ============================================================
+ *
+ * Para trocar o conteúdo em destaque futuramente,
+ * basta alterar o slug abaixo.
+ */
 
 const DESTAQUE_HOME = {
   slug: "introducao-as-substancias-organicas",
@@ -50,84 +61,169 @@ export default function HomePage() {
 
     async function fetchData() {
       try {
-        const [resumosCount, flashcardsCount, questoesCount] =
-          await Promise.all([
-            supabase
-              .from("resumos")
-              .select("*", { count: "exact", head: true }),
+        const [
+          resumosCount,
+          flashcardsCount,
+          questoesCount,
+        ] = await Promise.all([
+          supabase
+            .from("resumos")
+            .select("*", {
+              count: "exact",
+              head: true,
+            }),
 
-            supabase
-              .from("flashcards")
-              .select("*", { count: "exact", head: true }),
+          supabase
+            .from("flashcards")
+            .select("*", {
+              count: "exact",
+              head: true,
+            }),
 
-            supabase
-              .from("temas_questoes")
-              .select("*", { count: "exact", head: true }),
-          ])
+          supabase
+            .from("temas_questoes")
+            .select("*", {
+              count: "exact",
+              head: true,
+            })
+            .eq("visivel", true),
+        ])
 
         setCounts({
-          resumos: resumosCount.count || 0,
-          flashcards: flashcardsCount.count || 0,
-          questoes: questoesCount.count || 0,
+          resumos:
+            resumosCount.count || 0,
+
+          flashcards:
+            flashcardsCount.count || 0,
+
+          questoes:
+            questoesCount.count || 0,
         })
 
-        const [resumos, flashcards, temasQuestoes] =
-          await Promise.all([
-            supabase
-              .from("resumos")
-              .select("id, titulo, slug, categoria, criado_em")
-              .order("criado_em", { ascending: false }),
+        const [
+          resumos,
+          flashcards,
+          temasQuestoes,
+        ] = await Promise.all([
+          supabase
+            .from("resumos")
+            .select(
+              "id, titulo, slug, categoria, criado_em"
+            )
+            .order(
+              "criado_em",
+              {
+                ascending: false,
+              }
+            ),
 
-            supabase
-              .from("flashcards")
-              .select("id, pergunta, categoria, criado_em")
-              .order("criado_em", { ascending: false })
-              .limit(4),
+          supabase
+            .from("flashcards")
+            .select(
+              "id, pergunta, categoria, criado_em"
+            )
+            .order(
+              "criado_em",
+              {
+                ascending: false,
+              }
+            )
+            .limit(4),
 
-            supabase
-              .from("temas_questoes")
-              .select("id, titulo, slug, descricao, created_at")
-              .order("created_at", { ascending: false })
-              .limit(4),
-          ])
+          /*
+           * Na página inicial mostramos apenas
+           * temas de questões liberados.
+           */
+          supabase
+            .from("temas_questoes")
+            .select(
+              "id, titulo, slug, descricao, created_at, visivel"
+            )
+            .eq("visivel", true)
+            .order(
+              "created_at",
+              {
+                ascending: false,
+              }
+            )
+            .limit(4),
+        ])
 
         const feedItems: FeedItem[] = [
-          ...(resumos.data || []).map((item: any) => ({
-            id: item.id,
-            tipo: "Resumo" as const,
-            titulo: item.titulo,
-            categoria: item.categoria,
-            criado_em: item.criado_em,
-            href: item.slug
-              ? `/resumos/${item.slug}`
-              : "/resumos",
-          })),
+          ...(resumos.data || []).map(
+            (item: any) => ({
+              id: item.id,
 
-          ...(flashcards.data || []).map((item: any) => ({
-            id: item.id,
-            tipo: "Flashcard" as const,
-            titulo: item.pergunta,
-            categoria: item.categoria,
-            criado_em: item.criado_em,
-            href: "/flashcards",
-          })),
+              tipo:
+                "Resumo" as const,
 
-          ...(temasQuestoes.data || []).map((item: any) => ({
-            id: item.id,
-            tipo: "Questão" as const,
-            titulo: item.titulo,
-            categoria: item.descricao,
-            criado_em: item.created_at,
-            href: item.slug
-              ? `/questoes/${item.slug}`
-              : "/questoes",
-          })),
+              titulo:
+                item.titulo,
+
+              categoria:
+                item.categoria,
+
+              criado_em:
+                item.criado_em,
+
+              href: item.slug
+                ? `/resumos/${item.slug}`
+                : "/resumos",
+            })
+          ),
+
+          ...(flashcards.data || []).map(
+            (item: any) => ({
+              id: item.id,
+
+              tipo:
+                "Flashcard" as const,
+
+              titulo:
+                item.pergunta,
+
+              categoria:
+                item.categoria,
+
+              criado_em:
+                item.criado_em,
+
+              href:
+                "/flashcards",
+            })
+          ),
+
+          ...(temasQuestoes.data || []).map(
+            (item: any) => ({
+              id: item.id,
+
+              tipo:
+                "Questão" as const,
+
+              titulo:
+                item.titulo,
+
+              categoria:
+                item.descricao,
+
+              criado_em:
+                item.created_at,
+
+              href: item.slug
+                ? `/questoes/${item.slug}`
+                : "/questoes",
+            })
+          ),
         ]
 
         feedItems.sort(
           (a, b) =>
-            new Date(b.criado_em).getTime() -
-            new Date(a.criado_em).getTime()
+            new Date(
+              b.criado_em
+            ).getTime() -
+            new Date(
+              a.criado_em
+            ).getTime()
         )
 
         setFeed(feedItems)
@@ -144,19 +240,35 @@ export default function HomePage() {
     fetchData()
   }, [])
 
-  function formatarData(data: string) {
-    return new Date(data).toLocaleDateString("pt-BR", {
-      day: "2-digit",
-      month: "short",
-    })
+  function formatarData(
+    data: string
+  ) {
+    return new Date(
+      data
+    ).toLocaleDateString(
+      "pt-BR",
+      {
+        day: "2-digit",
+        month: "short",
+      }
+    )
   }
 
+  /*
+   * Procura o conteúdo escolhido manualmente.
+   *
+   * Caso ele não exista, utiliza o conteúdo
+   * mais recente como fallback.
+   */
   const destaque =
     feed.find((item) =>
-      item.href.includes(DESTAQUE_HOME.slug)
+      item.href.includes(
+        DESTAQUE_HOME.slug
+      )
     ) || feed[0]
 
-  const novidades = feed.slice(0, 5)
+  const novidades =
+    feed.slice(0, 5)
 
   const totalConteudos =
     counts.resumos +
@@ -168,18 +280,25 @@ export default function HomePage() {
       <Sidebar />
 
       <main className="lg:pl-64 pt-14 lg:pt-0">
+
         <div className="mx-auto max-w-7xl px-4 py-6 sm:px-6 lg:px-8 lg:py-8">
 
-          {/* TOPO */}
+          {/* ================================================== */}
+          {/* TOPO                                               */}
+          {/* ================================================== */}
+
           <header className="mb-7 flex flex-col gap-4 sm:flex-row sm:items-end sm:justify-between">
 
             <div>
+
               <div className="mb-2 flex items-center gap-2">
+
                 <div className="h-2 w-2 rounded-full bg-sky-400 shadow-[0_0_12px_rgba(56,189,248,0.8)]" />
 
                 <span className="text-xs font-semibold text-sky-400">
                   Monitoria Acadêmica
                 </span>
+
               </div>
 
               <h1 className="text-2xl font-bold tracking-tight text-foreground sm:text-3xl">
@@ -189,6 +308,7 @@ export default function HomePage() {
               <p className="mt-1 text-sm text-muted-foreground">
                 Revisar · Memorizar · Praticar
               </p>
+
             </div>
 
             <div className="flex items-center gap-2">
@@ -202,22 +322,30 @@ export default function HomePage() {
                 className="inline-flex items-center gap-2 rounded-xl bg-sky-500 px-4 py-2.5 text-xs font-semibold text-white shadow-lg shadow-sky-500/20 transition hover:-translate-y-0.5 hover:bg-sky-400 hover:shadow-sky-500/30"
               >
                 <Play className="h-3.5 w-3.5" />
+
                 Estudar agora
               </Link>
 
             </div>
+
           </header>
 
-          {/* DESTAQUE */}
+          {/* ================================================== */}
+          {/* DESTAQUE                                           */}
+          {/* ================================================== */}
+
           <section className="mb-7">
 
             <div className="group relative overflow-hidden rounded-[1.75rem] border border-sky-500/20 bg-card">
+
+              {/* EFEITOS DE FUNDO */}
 
               <div className="pointer-events-none absolute -right-24 -top-28 h-72 w-72 rounded-full bg-sky-500/15 blur-3xl transition duration-700 group-hover:bg-sky-500/20" />
 
               <div className="pointer-events-none absolute bottom-0 right-1/4 h-48 w-48 rounded-full bg-cyan-400/10 blur-3xl" />
 
               {/* DECORAÇÃO */}
+
               <div className="pointer-events-none absolute right-10 top-1/2 hidden -translate-y-1/2 lg:block">
 
                 <div className="relative h-52 w-52">
@@ -233,6 +361,7 @@ export default function HomePage() {
                   </div>
 
                 </div>
+
               </div>
 
               <div className="relative p-6 sm:p-8 lg:min-h-[285px] lg:p-9">
@@ -240,10 +369,15 @@ export default function HomePage() {
                 {loading ? (
 
                   <div className="max-w-2xl space-y-4">
+
                     <div className="h-6 w-28 animate-pulse rounded-full bg-muted" />
+
                     <div className="h-10 w-2/3 animate-pulse rounded-xl bg-muted" />
+
                     <div className="h-4 w-1/2 animate-pulse rounded bg-muted" />
+
                     <div className="h-11 w-36 animate-pulse rounded-xl bg-muted" />
+
                   </div>
 
                 ) : destaque ? (
@@ -275,10 +409,13 @@ export default function HomePage() {
                     <div className="mt-6 flex flex-wrap gap-3">
 
                       <Link
-                        href={destaque.href}
+                        href={
+                          destaque.href
+                        }
                         className="inline-flex items-center gap-2 rounded-xl bg-sky-500 px-4 py-2.5 text-xs font-semibold text-white shadow-lg shadow-sky-500/20 transition hover:-translate-y-0.5 hover:bg-sky-400"
                       >
                         Começar
+
                         <ArrowRight className="h-4 w-4" />
                       </Link>
 
@@ -287,6 +424,7 @@ export default function HomePage() {
                         className="inline-flex items-center gap-2 rounded-xl border border-border bg-background/50 px-4 py-2.5 text-xs font-semibold text-foreground backdrop-blur transition hover:border-sky-500/40 hover:text-sky-400"
                       >
                         <Target className="h-4 w-4" />
+
                         Praticar
                       </Link>
 
@@ -299,7 +437,9 @@ export default function HomePage() {
                   <div className="max-w-xl">
 
                     <div className="mb-5 flex h-12 w-12 items-center justify-center rounded-2xl bg-sky-500/10 text-sky-400">
+
                       <BookOpen className="h-6 w-6" />
+
                     </div>
 
                     <h2 className="text-2xl font-bold text-foreground">
@@ -315,10 +455,15 @@ export default function HomePage() {
                 )}
 
               </div>
+
             </div>
+
           </section>
 
-          {/* MODOS DE ESTUDO */}
+          {/* ================================================== */}
+          {/* MODOS DE ESTUDO                                    */}
+          {/* ================================================== */}
+
           <section className="mb-8">
 
             <div className="mb-4 flex items-end justify-between">
@@ -336,6 +481,7 @@ export default function HomePage() {
             <div className="grid gap-4 md:grid-cols-3">
 
               {/* RESUMOS */}
+
               <Link
                 href="/resumos"
                 className="group relative min-h-[210px] overflow-hidden rounded-[1.5rem] border border-border bg-card p-5 transition duration-300 hover:-translate-y-1.5 hover:border-sky-500/40 hover:shadow-2xl hover:shadow-sky-500/10"
@@ -348,7 +494,9 @@ export default function HomePage() {
                   <div className="flex items-start justify-between">
 
                     <div className="flex h-12 w-12 items-center justify-center rounded-2xl bg-sky-500/10 text-sky-400 transition duration-300 group-hover:scale-110 group-hover:bg-sky-500/20">
+
                       <BookOpen className="h-6 w-6" />
+
                     </div>
 
                     <ArrowRight className="h-5 w-5 text-muted-foreground transition duration-300 group-hover:translate-x-1 group-hover:text-sky-400" />
@@ -380,9 +528,11 @@ export default function HomePage() {
                   </div>
 
                 </div>
+
               </Link>
 
               {/* FLASHCARDS */}
+
               <Link
                 href="/flashcards"
                 className="group relative min-h-[210px] overflow-hidden rounded-[1.5rem] border border-border bg-card p-5 transition duration-300 hover:-translate-y-1.5 hover:border-cyan-500/40 hover:shadow-2xl hover:shadow-cyan-500/10"
@@ -407,7 +557,9 @@ export default function HomePage() {
                   <div className="flex items-start justify-between">
 
                     <div className="flex h-12 w-12 items-center justify-center rounded-2xl bg-cyan-500/10 text-cyan-400 transition duration-300 group-hover:scale-110 group-hover:bg-cyan-500/20">
+
                       <Layers className="h-6 w-6" />
+
                     </div>
 
                     <ArrowRight className="h-5 w-5 text-muted-foreground transition duration-300 group-hover:translate-x-1 group-hover:text-cyan-400" />
@@ -439,9 +591,11 @@ export default function HomePage() {
                   </div>
 
                 </div>
+
               </Link>
 
               {/* QUESTÕES */}
+
               <Link
                 href="/questoes"
                 className="group relative min-h-[210px] overflow-hidden rounded-[1.5rem] border border-border bg-card p-5 transition duration-300 hover:-translate-y-1.5 hover:border-sky-500/40 hover:shadow-2xl hover:shadow-sky-500/10"
@@ -450,7 +604,9 @@ export default function HomePage() {
                 <div className="absolute -right-10 -top-10 h-32 w-32 rounded-full bg-sky-500/10 blur-2xl transition group-hover:bg-sky-500/20" />
 
                 <div className="absolute right-8 top-16 opacity-15 transition duration-500 group-hover:scale-110 group-hover:opacity-30">
+
                   <Target className="h-20 w-20 text-sky-400" />
+
                 </div>
 
                 <div className="relative flex h-full flex-col justify-between">
@@ -458,7 +614,9 @@ export default function HomePage() {
                   <div className="flex items-start justify-between">
 
                     <div className="flex h-12 w-12 items-center justify-center rounded-2xl bg-sky-500/10 text-sky-400 transition duration-300 group-hover:scale-110 group-hover:bg-sky-500/20">
+
                       <Target className="h-6 w-6" />
+
                     </div>
 
                     <ArrowRight className="h-5 w-5 text-muted-foreground transition duration-300 group-hover:translate-x-1 group-hover:text-sky-400" />
@@ -490,15 +648,23 @@ export default function HomePage() {
                   </div>
 
                 </div>
+
               </Link>
 
             </div>
+
           </section>
 
-          {/* PARTE INFERIOR */}
+          {/* ================================================== */}
+          {/* PARTE INFERIOR                                     */}
+          {/* ================================================== */}
+
           <section className="grid gap-5 lg:grid-cols-[minmax(0,1fr)_310px]">
 
-            {/* NOVIDADES */}
+            {/* ================================================= */}
+            {/* NOVIDADES                                        */}
+            {/* ================================================= */}
+
             <div className="overflow-hidden rounded-[1.5rem] border border-border bg-card">
 
               <div className="flex items-center justify-between border-b border-border px-5 py-4 sm:px-6">
@@ -523,21 +689,28 @@ export default function HomePage() {
 
                 <div className="space-y-4 p-6">
 
-                  {[1, 2, 3, 4].map((item) => (
-                    <div
-                      key={item}
-                      className="flex animate-pulse items-center gap-4"
-                    >
+                  {[1, 2, 3, 4].map(
+                    (item) => (
 
-                      <div className="h-10 w-10 rounded-xl bg-muted" />
+                      <div
+                        key={item}
+                        className="flex animate-pulse items-center gap-4"
+                      >
 
-                      <div className="flex-1 space-y-2">
-                        <div className="h-3 w-24 rounded bg-muted" />
-                        <div className="h-4 w-1/2 rounded bg-muted" />
+                        <div className="h-10 w-10 rounded-xl bg-muted" />
+
+                        <div className="flex-1 space-y-2">
+
+                          <div className="h-3 w-24 rounded bg-muted" />
+
+                          <div className="h-4 w-1/2 rounded bg-muted" />
+
+                        </div>
+
                       </div>
 
-                    </div>
-                  ))}
+                    )
+                  )}
 
                 </div>
 
@@ -557,67 +730,83 @@ export default function HomePage() {
 
                 <div>
 
-                  {novidades.map((item, index) => (
+                  {novidades.map(
+                    (
+                      item,
+                      index
+                    ) => (
 
-                    <Link
-                      key={`${item.tipo}-${item.id}`}
-                      href={item.href}
-                      className={`group flex items-center gap-4 px-5 py-4 transition hover:bg-sky-500/[0.035] sm:px-6 ${
-                        index !== novidades.length - 1
-                          ? "border-b border-border"
-                          : ""
-                      }`}
-                    >
-
-                      <div className="w-11 shrink-0 text-center">
-
-                        <p className="text-[10px] font-medium uppercase text-muted-foreground">
-                          {formatarData(item.criado_em)}
-                        </p>
-
-                      </div>
-
-                      <div
-                        className={`flex h-9 w-9 shrink-0 items-center justify-center rounded-xl ${
-                          item.tipo === "Resumo"
-                            ? "bg-sky-500/10 text-sky-400"
-                            : item.tipo === "Flashcard"
-                              ? "bg-cyan-500/10 text-cyan-400"
-                              : "bg-sky-500/10 text-sky-400"
+                      <Link
+                        key={`${item.tipo}-${item.id}`}
+                        href={
+                          item.href
+                        }
+                        className={`group flex items-center gap-4 px-5 py-4 transition hover:bg-sky-500/[0.035] sm:px-6 ${
+                          index !==
+                          novidades.length -
+                            1
+                            ? "border-b border-border"
+                            : ""
                         }`}
                       >
 
-                        {item.tipo === "Resumo" && (
-                          <FileText className="h-4 w-4" />
-                        )}
+                        <div className="w-11 shrink-0 text-center">
 
-                        {item.tipo === "Flashcard" && (
-                          <Layers className="h-4 w-4" />
-                        )}
+                          <p className="text-[10px] font-medium uppercase text-muted-foreground">
+                            {formatarData(
+                              item.criado_em
+                            )}
+                          </p>
 
-                        {item.tipo === "Questão" && (
-                          <HelpCircle className="h-4 w-4" />
-                        )}
+                        </div>
 
-                      </div>
+                        <div
+                          className={`flex h-9 w-9 shrink-0 items-center justify-center rounded-xl ${
+                            item.tipo ===
+                            "Resumo"
+                              ? "bg-sky-500/10 text-sky-400"
+                              : item.tipo ===
+                                  "Flashcard"
+                                ? "bg-cyan-500/10 text-cyan-400"
+                                : "bg-sky-500/10 text-sky-400"
+                          }`}
+                        >
 
-                      <div className="min-w-0 flex-1">
+                          {item.tipo ===
+                            "Resumo" && (
+                            <FileText className="h-4 w-4" />
+                          )}
 
-                        <p className="mb-0.5 text-[10px] font-semibold uppercase tracking-wide text-sky-400">
-                          {item.tipo}
-                        </p>
+                          {item.tipo ===
+                            "Flashcard" && (
+                            <Layers className="h-4 w-4" />
+                          )}
 
-                        <h3 className="truncate text-sm font-medium text-foreground transition group-hover:text-sky-400">
-                          {item.titulo}
-                        </h3>
+                          {item.tipo ===
+                            "Questão" && (
+                            <HelpCircle className="h-4 w-4" />
+                          )}
 
-                      </div>
+                        </div>
 
-                      <ArrowRight className="h-4 w-4 shrink-0 text-muted-foreground transition group-hover:translate-x-1 group-hover:text-sky-400" />
+                        <div className="min-w-0 flex-1">
 
-                    </Link>
+                          <p className="mb-0.5 text-[10px] font-semibold uppercase tracking-wide text-sky-400">
+                            {item.tipo}
+                          </p>
 
-                  ))}
+                          <h3 className="truncate text-sm font-medium text-foreground transition group-hover:text-sky-400">
+                            {item.titulo}
+                          </h3>
+
+                        </div>
+
+                        <ArrowRight className="h-4 w-4 shrink-0 text-muted-foreground transition group-hover:translate-x-1 group-hover:text-sky-400" />
+
+                      </Link>
+
+                    )
+                  )}
 
                 </div>
 
@@ -625,71 +814,141 @@ export default function HomePage() {
 
             </div>
 
-            {/* CARD LATERAL */}
+            {/* ================================================= */}
+            {/* EQUIPE DA MONITORIA                              */}
+            {/* ================================================= */}
+
             <div className="relative overflow-hidden rounded-[1.5rem] border border-sky-500/20 bg-gradient-to-br from-sky-500/10 via-card to-card p-5">
 
-              <div className="absolute -right-14 -top-14 h-40 w-40 rounded-full bg-sky-500/15 blur-3xl" />
+              {/* FUNDO DECORATIVO */}
+
+              <div className="pointer-events-none absolute -right-14 -top-14 h-40 w-40 rounded-full bg-sky-500/15 blur-3xl" />
+
+              <div className="pointer-events-none absolute -bottom-16 -left-16 h-36 w-36 rounded-full bg-cyan-500/10 blur-3xl" />
 
               <div className="relative">
 
+                {/* ÍCONE */}
+
                 <div className="mb-6 flex h-11 w-11 items-center justify-center rounded-2xl bg-sky-500 text-white shadow-lg shadow-sky-500/20">
-                  <Sparkles className="h-5 w-5" />
+
+                  <Users className="h-5 w-5" />
+
                 </div>
 
                 <p className="text-[11px] font-semibold uppercase tracking-[0.16em] text-sky-400">
-                  Estude do seu jeito
+                  Equipe da monitoria
                 </p>
 
                 <h2 className="mt-2 text-xl font-bold leading-tight text-foreground">
-                  Revise e pratique no mesmo lugar.
+                  Quem está por trás da monitoria
                 </h2>
 
-                <div className="mt-6 space-y-3">
+                {/* MONITORES */}
 
-                  <div className="flex items-center gap-3">
+                <div className="mt-6">
 
-                    <div className="h-1.5 w-1.5 rounded-full bg-sky-400" />
+                  <div className="mb-3 flex items-center gap-2">
 
-                    <span className="text-xs text-muted-foreground">
-                      {counts.resumos} resumos para revisão
-                    </span>
+                    <Users className="h-4 w-4 text-sky-400" />
 
-                  </div>
-
-                  <div className="flex items-center gap-3">
-
-                    <div className="h-1.5 w-1.5 rounded-full bg-cyan-400" />
-
-                    <span className="text-xs text-muted-foreground">
-                      {counts.flashcards} flashcards disponíveis
-                    </span>
+                    <p className="text-xs font-semibold text-foreground">
+                      Monitores
+                    </p>
 
                   </div>
 
-                  <div className="flex items-center gap-3">
+                  <div className="space-y-2">
 
-                    <div className="h-1.5 w-1.5 rounded-full bg-sky-400" />
+                    <div className="flex items-center gap-3 rounded-xl border border-border/70 bg-background/40 px-3 py-2.5">
 
-                    <span className="text-xs text-muted-foreground">
-                      {counts.questoes} temas de questões
-                    </span>
+                      <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-sky-500/10 text-xs font-bold text-sky-400">
+                        A
+                      </div>
+
+                      <div>
+
+                        <p className="text-xs font-semibold text-foreground">
+                          André Luiz
+                        </p>
+
+                        <p className="text-[10px] text-muted-foreground">
+                          Monitor
+                        </p>
+
+                      </div>
+
+                    </div>
+
+                    <div className="flex items-center gap-3 rounded-xl border border-border/70 bg-background/40 px-3 py-2.5">
+
+                      <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-cyan-500/10 text-xs font-bold text-cyan-400">
+                        A
+                      </div>
+
+                      <div>
+
+                        <p className="text-xs font-semibold text-foreground">
+                          Ana Georgia
+                        </p>
+
+                        <p className="text-[10px] text-muted-foreground">
+                          Monitora
+                        </p>
+
+                      </div>
+
+                    </div>
 
                   </div>
 
                 </div>
 
-                <Link
-                  href="/questoes"
-                  className="mt-7 inline-flex items-center gap-2 text-xs font-semibold text-sky-400 transition hover:gap-3"
-                >
-                  Começar uma atividade
-                  <ArrowRight className="h-3.5 w-3.5" />
-                </Link>
+                {/* PROFESSOR */}
+
+                <div className="mt-5 border-t border-border/70 pt-5">
+
+                  <div className="mb-3 flex items-center gap-2">
+
+                    <GraduationCap className="h-4 w-4 text-sky-400" />
+
+                    <p className="text-xs font-semibold text-foreground">
+                      Professor
+                    </p>
+
+                  </div>
+
+                  <div className="flex items-center gap-3 rounded-xl border border-border/70 bg-background/40 px-3 py-2.5">
+
+                    <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-sky-500/10 text-xs font-bold text-sky-400">
+                      F
+                    </div>
+
+                    <div>
+
+                      <p className="text-xs font-semibold text-foreground">
+                        Felipe Ramon
+                      </p>
+
+                      <p className="text-[10px] text-muted-foreground">
+                        Professor da disciplina
+                      </p>
+
+                    </div>
+
+                  </div>
+
+                </div>
 
               </div>
+
             </div>
 
           </section>
+
+          {/* ================================================== */}
+          {/* RODAPÉ                                             */}
+          {/* ================================================== */}
 
           <footer className="mt-8 flex items-center justify-center gap-2 pb-2 text-[10px] text-muted-foreground">
 
@@ -700,6 +959,7 @@ export default function HomePage() {
           </footer>
 
         </div>
+
       </main>
     </div>
   )
