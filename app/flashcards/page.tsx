@@ -33,6 +33,10 @@ export default function FlashcardsPage() {
       page_path: "/flashcards",
       section: "flashcards",
       title: "Página de flashcards",
+      content_type: "flashcard",
+      metadata: {
+        pagina: "flashcards",
+      },
     })
 
     async function carregarFlashcards() {
@@ -55,15 +59,29 @@ export default function FlashcardsPage() {
   const currentCard = flashcards[currentIndex]
 
   function proximoCard() {
-    setIsFlipped(false)
+    if (!currentCard) return
 
     trackEvent({
       event_type: "flashcard_next",
       page_path: "/flashcards",
       section: "flashcards",
-      slug: currentCard?.id,
-      title: currentCard?.pergunta,
+      slug: currentCard.id,
+      title: currentCard.pergunta,
+
+      content_id: currentCard.id,
+      content_type: "flashcard",
+
+      value: currentIndex + 1,
+
+      metadata: {
+        categoria: currentCard.categoria || "Geral",
+        posicao: currentIndex + 1,
+        total_cards: flashcards.length,
+        estava_virado: isFlipped,
+      },
     })
+
+    setIsFlipped(false)
 
     setCurrentIndex((prev) =>
       prev === flashcards.length - 1 ? 0 : prev + 1
@@ -71,15 +89,29 @@ export default function FlashcardsPage() {
   }
 
   function cardAnterior() {
-    setIsFlipped(false)
+    if (!currentCard) return
 
     trackEvent({
       event_type: "flashcard_prev",
       page_path: "/flashcards",
       section: "flashcards",
-      slug: currentCard?.id,
-      title: currentCard?.pergunta,
+      slug: currentCard.id,
+      title: currentCard.pergunta,
+
+      content_id: currentCard.id,
+      content_type: "flashcard",
+
+      value: currentIndex + 1,
+
+      metadata: {
+        categoria: currentCard.categoria || "Geral",
+        posicao: currentIndex + 1,
+        total_cards: flashcards.length,
+        estava_virado: isFlipped,
+      },
     })
+
+    setIsFlipped(false)
 
     setCurrentIndex((prev) =>
       prev === 0 ? flashcards.length - 1 : prev - 1
@@ -87,15 +119,33 @@ export default function FlashcardsPage() {
   }
 
   function virarCard() {
-    setIsFlipped((prev) => !prev)
+    if (!currentCard) return
+
+    const novoEstado = !isFlipped
 
     trackEvent({
       event_type: "flashcard_flip",
       page_path: "/flashcards",
       section: "flashcards",
-      slug: currentCard?.id,
-      title: currentCard?.pergunta,
+      slug: currentCard.id,
+      title: currentCard.pergunta,
+
+      content_id: currentCard.id,
+      content_type: "flashcard",
+
+      success: novoEstado,
+
+      value: currentIndex + 1,
+
+      metadata: {
+        categoria: currentCard.categoria || "Geral",
+        posicao: currentIndex + 1,
+        total_cards: flashcards.length,
+        lado_exibido: novoEstado ? "resposta" : "pergunta",
+      },
     })
+
+    setIsFlipped(novoEstado)
   }
 
   return (
@@ -156,14 +206,20 @@ export default function FlashcardsPage() {
             <section className="flex flex-col items-center">
               <div className="mb-5 flex w-full max-w-xl items-center justify-between rounded-2xl border border-border bg-card/80 px-5 py-3">
                 <div>
-                  <p className="text-xs text-muted-foreground">Categoria</p>
+                  <p className="text-xs text-muted-foreground">
+                    Categoria
+                  </p>
+
                   <p className="text-sm font-medium text-sky-400">
                     {currentCard.categoria || "Geral"}
                   </p>
                 </div>
 
                 <div className="text-center">
-                  <p className="text-xs text-muted-foreground">Card</p>
+                  <p className="text-xs text-muted-foreground">
+                    Card
+                  </p>
+
                   <p className="text-sm font-semibold">
                     {currentIndex + 1} / {flashcards.length}
                   </p>
