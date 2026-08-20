@@ -81,6 +81,29 @@ type QuestaoDificil = {
   taxa: number
 }
 
+type ResumoEngajamento = {
+  id: string
+  titulo: string
+  inicios: number
+  conclusoes: number
+  taxaConclusao: number
+  tempoMedio: number
+  etapaMedia: number
+  totalEtapas: number
+  abandonos: number
+}
+
+type FunilResumoItem = {
+  nome: string
+  total: number
+  percentual: number
+}
+
+type AbandonoResumoItem = {
+  nome: string
+  total: number
+}
+
 export default function DashboardPage() {
   const router = useRouter()
 
@@ -394,7 +417,7 @@ export default function DashboardPage() {
 
     /*
      * ========================================================
-     * RESUMOS
+     * RESUMOS / LEITURA POR ETAPAS
      * ========================================================
      */
 
@@ -410,33 +433,390 @@ export default function DashboardPage() {
           evento.event_type === "resumo_open"
       )
 
+    const resumoStepViews =
+      eventosFiltrados.filter(
+        (evento) =>
+          evento.event_type === "resumo_step_view"
+      )
+
+    const resumoCompletes =
+      eventosFiltrados.filter(
+        (evento) =>
+          evento.event_type === "resumo_complete"
+      )
+
     const resumoExits =
       eventosFiltrados.filter(
         (evento) =>
           evento.event_type === "resumo_exit"
       )
 
-    const tempoMedioResumo =
-      resumoExits.length > 0
-        ? Math.round(
-            resumoExits.reduce(
-              (acc, evento) =>
-                acc +
-                Number(
-                  evento.duration_seconds || 0
-                ),
-              0
-            ) / resumoExits.length
+    const resumoLegacyComplete =
+      eventosFiltrados.filter(
+        (evento) =>
+          evento.event_type === "resumo_read_progress" &&
+          Number(evento.value) === 100
+      )
+
+    function resumoId(evento: AnalyticsEvent) {
+      return (
+        evento.content_id ||
+        evento.slug ||
+        evento.title ||
+        "resumo-desconhecido"
+      )
+    }
+
+    function chaveLeitura(evento: AnalyticsEvent) {
+      const conteudo = resumoId(evento)
+
+      if (evento.session_id) {
+        return `${conteudo}::session::${evento.session_id}`
+      }
+
+      if (evento.visitor_id) {
+        return `${conteudo}::visitor::${evento.visitor_id}`
+      }
+
+      return `${conteudo}::event::${evento.id}`
+    }
+
+    const leiturasIniciadasSet = new Set(
+      resumoViews.map(chaveLeitura)
+    )
+
+    const leiturasConcluidasSet = new Set([
+      ...resumoCompletes.map(chaveLeitura),
+      ...resumoLegacyComplete.map(chaveLeitura),
+    ])
+
+    const leiturasIniciadas = leiturasIniciadasSet.size
+    const leiturasConcluidas = leiturasConcluidasSet.size
+
+    const taxaConclusaoResumo =
+      leiturasIniciadas > 0
+        ? Math.min(
+            100,
+            Math.round(
+              (leiturasConcluidas / leiturasIniciadas) * 100
+            )
           )
         : 0
 
-    const progresso100 =
-      eventosFiltrados.filter(
-        (evento) =>
-          evento.event_type ===
-            "resumo_read_progress" &&
-          Number(evento.value) === 100
-      ).length
+    const resumoExitsComDuracao = resumoExits.filter(
+      (evento) =>
+        typeof evento.duration_seconds === "number" &&
+        Number(evento.duration_seconds) >= 0
+    )
+
+    const tempoMedioResumo =
+      resumoExitsComDuracao.length > 0
+        ? Math.round(
+            resumoExitsComDuracao.reduce(
+              (acc, evento) =>
+                acc + Number(evento.duration_seconds || 0),
+              0
+            ) / resumoExitsComDuracao.length
+          )
+        : 0
+
+    /*
+     * Maior etapa alcançada por leitura.
+     */
+    const progressoPorLeitura = new Map<
+      string,
+      {
+        etapa: number
+        totalEtapas: number
+        resumo: string
+        titulo: string
+      }
+    >()
+
+    resumoStepViews.forEach((evento) => {
+      const chave = chaveLeitura(evento)
+      const etapa = Math.max(
+        1,
+        Number(evento.value || evento.metadata?.etapa || 1)
+      )
+      const totalEtapas = Math.max(
+        etapa,
+        Number(evento.metadata?.total_etapas || etapa)
+      )
+
+      const atual = progressoPorLeitura.get(chave)
+
+      if (!atual || etapa > atual.etapa) {
+        progressoPorLeitura.set(chave, {
+          etapa,
+          totalEtapas: Math.max(
+            totalEtapas,
+            atual?.totalEtapas || 0
+          ),
+          resumo: resumoId(evento),
+          titulo:
+            evento.title ||
+            evento.slug ||
+            "Resumo",
+        })
+      }
+    })
+
+    const progressoLeituras = Array.from(
+      progressoPorLeitura.values()
+    )
+
+    const etapaMediaResumo =
+      progressoLeituras.length > 0
+        ? Number(
+            (
+              progressoLeituras.reduce(
+                (acc, item) => acc + item.etapa,
+                0
+              ) / progressoLeituras.length
+            ).toFixed(1)
+          )
+        : 0
+
+    const totalEtapasMedio =
+      progressoLeituras.length > 0
+        ? Number(
+            (
+              progressoLeituras.reduce(
+                (acc, item) => acc + item.totalEtapas,
+                0
+              ) / progressoLeituras.length
+            ).toFixed(1)
+          )
+        : 0
+
+    /*
+     * Funil global de etapas.
+     * Cada leitura é contada apenas uma vez em cada etapa.
+     */
+    const maxEtapas = Math.min(
+      12,
+      Math.max(
+        0,
+        ...progressoLeituras.map(
+          (item) => item.totalEtapas
+        )
+      )
+    )
+
+    const funilEtapas: FunilResumoItem[] = []
+
+    if (leiturasIniciadas > 0) {
+      funilEtapas.push({
+        nome: "Iniciaram",
+        total: leiturasIniciadas,
+        percentual: 100,
+      })
+
+      for (let etapa = 2; etapa <= maxEtapas; etapa++) {
+        const total = Array.from(
+          progressoPorLeitura.values()
+        ).filter(
+          (item) => item.etapa >= etapa
+        ).length
+
+        funilEtapas.push({
+          nome: `Etapa ${etapa}`,
+          total,
+          percentual: Math.min(
+            100,
+            Math.round(
+              (total / leiturasIniciadas) * 100
+            )
+          ),
+        })
+      }
+
+      funilEtapas.push({
+        nome: "Concluíram",
+        total: leiturasConcluidas,
+        percentual: Math.min(
+          100,
+          Math.round(
+            (leiturasConcluidas / leiturasIniciadas) * 100
+          )
+        ),
+      })
+    }
+
+    /*
+     * Onde as leituras são interrompidas.
+     * Usa resumo_exit e etapa_maxima registrada pelo novo leitor.
+     */
+    const abandonosMapa = new Map<number, Set<string>>()
+
+    resumoExits.forEach((evento) => {
+      const chave = chaveLeitura(evento)
+
+      if (leiturasConcluidasSet.has(chave)) {
+        return
+      }
+
+      const etapaMaxima = Number(
+        evento.metadata?.etapa_maxima || 0
+      )
+
+      if (etapaMaxima <= 0) return
+
+      if (!abandonosMapa.has(etapaMaxima)) {
+        abandonosMapa.set(etapaMaxima, new Set())
+      }
+
+      abandonosMapa.get(etapaMaxima)!.add(chave)
+    })
+
+    const abandonosPorEtapa: AbandonoResumoItem[] =
+      Array.from(abandonosMapa.entries())
+        .map(([etapa, chaves]) => ({
+          nome: `Após a etapa ${etapa}`,
+          total: chaves.size,
+        }))
+        .sort((a, b) => b.total - a.total)
+        .slice(0, 8)
+
+    /*
+     * Desempenho individual de cada resumo.
+     */
+    const mapaResumos = new Map<
+      string,
+      {
+        id: string
+        titulo: string
+        inicios: Set<string>
+        conclusoes: Set<string>
+        duracoes: number[]
+        progresso: Map<string, { etapa: number; total: number }>
+      }
+    >()
+
+    function garantirResumo(evento: AnalyticsEvent) {
+      const id = resumoId(evento)
+
+      if (!mapaResumos.has(id)) {
+        mapaResumos.set(id, {
+          id,
+          titulo:
+            evento.title ||
+            evento.slug ||
+            "Resumo",
+          inicios: new Set(),
+          conclusoes: new Set(),
+          duracoes: [],
+          progresso: new Map(),
+        })
+      }
+
+      return mapaResumos.get(id)!
+    }
+
+    resumoViews.forEach((evento) => {
+      garantirResumo(evento).inicios.add(
+        chaveLeitura(evento)
+      )
+    })
+
+    ;[...resumoCompletes, ...resumoLegacyComplete].forEach(
+      (evento) => {
+        garantirResumo(evento).conclusoes.add(
+          chaveLeitura(evento)
+        )
+      }
+    )
+
+    resumoExitsComDuracao.forEach((evento) => {
+      garantirResumo(evento).duracoes.push(
+        Number(evento.duration_seconds || 0)
+      )
+    })
+
+    resumoStepViews.forEach((evento) => {
+      const resumoItem = garantirResumo(evento)
+      const chave = chaveLeitura(evento)
+      const etapa = Math.max(
+        1,
+        Number(evento.value || evento.metadata?.etapa || 1)
+      )
+      const total = Math.max(
+        etapa,
+        Number(evento.metadata?.total_etapas || etapa)
+      )
+      const atual = resumoItem.progresso.get(chave)
+
+      if (!atual || etapa > atual.etapa) {
+        resumoItem.progresso.set(chave, {
+          etapa,
+          total: Math.max(total, atual?.total || 0),
+        })
+      }
+    })
+
+    const desempenhoResumos: ResumoEngajamento[] =
+      Array.from(mapaResumos.values())
+        .map((item) => {
+          const progresso = Array.from(
+            item.progresso.values()
+          )
+          const inicios = item.inicios.size
+          const conclusoes = item.conclusoes.size
+          const tempoMedio =
+            item.duracoes.length > 0
+              ? Math.round(
+                  item.duracoes.reduce(
+                    (acc, valor) => acc + valor,
+                    0
+                  ) / item.duracoes.length
+                )
+              : 0
+          const etapaMedia =
+            progresso.length > 0
+              ? Number(
+                  (
+                    progresso.reduce(
+                      (acc, valor) => acc + valor.etapa,
+                      0
+                    ) / progresso.length
+                  ).toFixed(1)
+                )
+              : 0
+          const totalEtapas = Math.max(
+            0,
+            ...progresso.map((valor) => valor.total)
+          )
+
+          return {
+            id: item.id,
+            titulo: item.titulo,
+            inicios,
+            conclusoes,
+            taxaConclusao:
+              inicios > 0
+                ? Math.min(
+                    100,
+                    Math.round(
+                      (conclusoes / inicios) * 100
+                    )
+                  )
+                : 0,
+            tempoMedio,
+            etapaMedia,
+            totalEtapas,
+            abandonos: Math.max(
+              0,
+              inicios - conclusoes
+            ),
+          }
+        })
+        .filter(
+          (item) =>
+            item.inicios > 0 ||
+            item.conclusoes > 0
+        )
+        .sort((a, b) => b.inicios - a.inicios)
 
     /*
      * ========================================================
@@ -819,30 +1199,6 @@ export default function DashboardPage() {
       }
     )
 
-    /*
-     * ========================================================
-     * PROGRESSO DOS RESUMOS
-     * ========================================================
-     */
-
-    const progressoResumo = [
-      25,
-      50,
-      75,
-      100,
-    ].map((percentual) => ({
-      nome: `${percentual}%`,
-
-      total:
-        eventosFiltrados.filter(
-          (evento) =>
-            evento.event_type ===
-              "resumo_read_progress" &&
-            Number(evento.value) ===
-              percentual
-        ).length,
-    }))
-
     return {
       totalAcessos,
       totalEventos,
@@ -856,8 +1212,15 @@ export default function DashboardPage() {
       resumoOpens:
         resumoOpens.length,
 
+      leiturasIniciadas,
+      leiturasConcluidas,
+      taxaConclusaoResumo,
       tempoMedioResumo,
-      progresso100,
+      etapaMediaResumo,
+      totalEtapasMedio,
+      funilEtapas,
+      abandonosPorEtapa,
+      desempenhoResumos,
 
       flashcardViews,
       flashcardFlips:
@@ -891,7 +1254,6 @@ export default function DashboardPage() {
 
       acessosPorDia,
       horarios,
-      progressoResumo,
     }
   }, [eventosFiltrados])
 
@@ -1345,10 +1707,18 @@ export default function DashboardPage() {
               <div className="grid grid-cols-2 gap-3">
 
                 <MiniMetrica
-                  titulo="Visualizações"
-                  valor={
-                    dados.resumoViews
-                  }
+                  titulo="Leituras iniciadas"
+                  valor={dados.leiturasIniciadas}
+                />
+
+                <MiniMetrica
+                  titulo="Concluídas"
+                  valor={dados.leiturasConcluidas}
+                />
+
+                <MiniMetrica
+                  titulo="Taxa de conclusão"
+                  valor={`${dados.taxaConclusaoResumo}%`}
                 />
 
                 <MiniMetrica
@@ -1356,20 +1726,6 @@ export default function DashboardPage() {
                   valor={formatarTempo(
                     dados.tempoMedioResumo
                   )}
-                />
-
-                <MiniMetrica
-                  titulo="Aberturas"
-                  valor={
-                    dados.resumoOpens
-                  }
-                />
-
-                <MiniMetrica
-                  titulo="Chegaram a 100%"
-                  valor={
-                    dados.progresso100
-                  }
                 />
 
               </div>
@@ -1609,39 +1965,104 @@ export default function DashboardPage() {
           </section>
 
           {/* ================================================== */}
-          {/* PROGRESSO LEITURA                                  */}
+          {/* ENGAJAMENTO DOS RESUMOS                            */}
           {/* ================================================== */}
 
-          <section className="mt-6 grid gap-5 xl:grid-cols-2">
+          <div className="mt-8 mb-3">
+
+            <h2 className="text-lg font-bold text-foreground">
+              Engajamento nos resumos
+            </h2>
+
+            <p className="text-xs text-muted-foreground">
+              Acompanhe até onde os alunos avançam e onde interrompem a leitura
+            </p>
+
+          </div>
+
+          <section className="grid gap-5 xl:grid-cols-[minmax(0,1fr)_360px]">
 
             <Painel
-              titulo="Progresso de leitura dos resumos"
-              icon={
-                <BookOpen className="h-4 w-4" />
-              }
+              titulo="Funil de leitura"
+              icon={<BookOpen className="h-4 w-4" />}
             >
-
-              <Barras
-                dados={
-                  dados.progressoResumo
-                }
-              />
-
+              <FunilResumo dados={dados.funilEtapas} />
             </Painel>
 
             <Painel
-              titulo="Resumos mais acessados"
-              icon={
-                <TrendingUp className="h-4 w-4" />
-              }
+              titulo="Onde os alunos param"
+              icon={<TrendingUp className="h-4 w-4" />}
             >
+              <Barras dados={dados.abandonosPorEtapa} />
+            </Painel>
 
-              <Ranking
-                dados={
-                  dados.resumosMaisAcessados
-                }
+          </section>
+
+          <section className="mt-5 grid gap-5 xl:grid-cols-[minmax(0,1fr)_320px]">
+
+            <Painel
+              titulo="Desempenho por resumo"
+              icon={<FileText className="h-4 w-4" />}
+            >
+              <TabelaEngajamentoResumos
+                dados={dados.desempenhoResumos}
+                formatarTempo={formatarTempo}
               />
+            </Painel>
 
+            <Painel
+              titulo="Leitura média"
+              icon={<Target className="h-4 w-4" />}
+            >
+              <div className="space-y-4">
+                <MiniMetrica
+                  titulo="Etapa média alcançada"
+                  valor={
+                    dados.etapaMediaResumo > 0
+                      ? dados.totalEtapasMedio > 0
+                        ? `${dados.etapaMediaResumo} de ${dados.totalEtapasMedio}`
+                        : dados.etapaMediaResumo
+                      : "—"
+                  }
+                />
+
+                <MiniMetrica
+                  titulo="Taxa geral de conclusão"
+                  valor={`${dados.taxaConclusaoResumo}%`}
+                />
+
+                <MiniMetrica
+                  titulo="Tempo médio de leitura"
+                  valor={formatarTempo(dados.tempoMedioResumo)}
+                />
+              </div>
+            </Painel>
+
+          </section>
+
+          <section className="mt-5 grid gap-5 xl:grid-cols-2">
+
+            <Painel
+              titulo="Resumos mais acessados"
+              icon={<TrendingUp className="h-4 w-4" />}
+            >
+              <Ranking dados={dados.resumosMaisAcessados} />
+            </Painel>
+
+            <Painel
+              titulo="Resumos com mais conclusões"
+              icon={<CheckCircle2 className="h-4 w-4" />}
+            >
+              <Ranking
+                dados={dados.desempenhoResumos
+                  .filter((item) => item.conclusoes > 0)
+                  .sort((a, b) => b.conclusoes - a.conclusoes)
+                  .slice(0, 8)
+                  .map((item) => ({
+                    nome: item.titulo,
+                    total: item.conclusoes,
+                  }))}
+              />
             </Painel>
 
           </section>
@@ -2276,6 +2697,128 @@ function GraficoHorarios({
         )
       })}
 
+    </div>
+  )
+}
+
+function FunilResumo({
+  dados,
+}: {
+  dados: FunilResumoItem[]
+}) {
+  if (dados.length === 0) {
+    return <Vazio />
+  }
+
+  return (
+    <div className="space-y-4">
+      {dados.map((item, index) => (
+        <div key={`${item.nome}-${index}`}>
+          <div className="mb-1.5 flex items-center justify-between gap-4">
+            <div className="min-w-0">
+              <p className="truncate text-xs font-medium text-foreground">
+                {item.nome}
+              </p>
+            </div>
+
+            <div className="flex shrink-0 items-center gap-2">
+              <span className="text-xs font-semibold text-foreground">
+                {item.total}
+              </span>
+              <span className="w-10 text-right text-[10px] text-muted-foreground">
+                {item.percentual}%
+              </span>
+            </div>
+          </div>
+
+          <div className="h-2 overflow-hidden rounded-full bg-secondary">
+            <div
+              className="h-full rounded-full bg-gradient-to-r from-sky-500 to-cyan-400 transition-all duration-500"
+              style={{
+                width: `${Math.max(2, item.percentual)}%`,
+              }}
+            />
+          </div>
+        </div>
+      ))}
+    </div>
+  )
+}
+
+function TabelaEngajamentoResumos({
+  dados,
+  formatarTempo,
+}: {
+  dados: ResumoEngajamento[]
+  formatarTempo: (segundos: number) => string
+}) {
+  if (dados.length === 0) {
+    return <Vazio />
+  }
+
+  return (
+    <div className="overflow-x-auto">
+      <table className="w-full min-w-[720px] text-left">
+        <thead>
+          <tr className="border-b border-border text-[10px] uppercase tracking-wider text-muted-foreground">
+            <th className="pb-3 pr-4 font-semibold">Resumo</th>
+            <th className="pb-3 px-3 text-center font-semibold">Inícios</th>
+            <th className="pb-3 px-3 text-center font-semibold">Conclusões</th>
+            <th className="pb-3 px-3 text-center font-semibold">Taxa</th>
+            <th className="pb-3 px-3 text-center font-semibold">Etapa média</th>
+            <th className="pb-3 pl-3 text-right font-semibold">Tempo médio</th>
+          </tr>
+        </thead>
+
+        <tbody>
+          {dados.slice(0, 10).map((item) => (
+            <tr
+              key={item.id}
+              className="border-b border-border/70 last:border-0"
+            >
+              <td className="py-3 pr-4">
+                <p className="max-w-[260px] truncate text-xs font-medium text-foreground">
+                  {item.titulo}
+                </p>
+              </td>
+
+              <td className="px-3 py-3 text-center text-xs text-foreground">
+                {item.inicios}
+              </td>
+
+              <td className="px-3 py-3 text-center text-xs text-foreground">
+                {item.conclusoes}
+              </td>
+
+              <td className="px-3 py-3 text-center">
+                <span
+                  className={`rounded-lg px-2 py-1 text-[10px] font-semibold ${
+                    item.taxaConclusao >= 70
+                      ? "bg-emerald-500/10 text-emerald-400"
+                      : item.taxaConclusao >= 40
+                        ? "bg-amber-500/10 text-amber-400"
+                        : "bg-rose-500/10 text-rose-400"
+                  }`}
+                >
+                  {item.taxaConclusao}%
+                </span>
+              </td>
+
+              <td className="px-3 py-3 text-center text-xs text-muted-foreground">
+                {item.etapaMedia > 0
+                  ? item.totalEtapas > 0
+                    ? `${item.etapaMedia} / ${item.totalEtapas}`
+                    : item.etapaMedia
+                  : "—"}
+              </td>
+
+              <td className="py-3 pl-3 text-right text-xs text-muted-foreground">
+                {formatarTempo(item.tempoMedio)}
+              </td>
+            </tr>
+          ))}
+        </tbody>
+      </table>
     </div>
   )
 }
