@@ -51,6 +51,20 @@ type Questao = {
   ordem: number | null
 }
 
+const LETRAS = ["A", "B", "C", "D", "E"]
+
+/*
+ * Retorna o índice (0-4) da alternativa correta
+ * ou -1 se a questão não tiver gabarito cadastrado.
+ */
+function getCorretaIndex(q: Questao) {
+  const valor = (q.correta || q.resposta_correta || "").trim()
+
+  if (!valor) return -1
+
+  return LETRAS.indexOf(valor.toUpperCase())
+}
+
 export default function QuestaoDetailPage() {
   const params = useParams()
 
@@ -77,6 +91,12 @@ export default function QuestaoDetailPage() {
   const [score, setScore] = useState(0)
 
   const [answeredClosed, setAnsweredClosed] = useState(0)
+
+  /*
+   * Questões fechadas respondidas que possuem gabarito.
+   * É a base do cálculo de percentual e de erros.
+   */
+  const [gradedClosed, setGradedClosed] = useState(0)
 
   const [answeredOpen, setAnsweredOpen] = useState(0)
 
@@ -122,10 +142,7 @@ export default function QuestaoDetailPage() {
           .single()
 
       if (temaError || !temaData) {
-        console.error(
-          "Erro ao buscar tema:",
-          temaError
-        )
+        console.error("Erro ao buscar tema:", temaError)
 
         setTema(null)
         setQuestoes([])
@@ -141,29 +158,24 @@ export default function QuestaoDetailPage() {
         return
       }
 
-      const {
-        data: questoesData,
-        error: questoesError,
-      } = await supabase
-        .from("questoes")
-        .select("*")
-        .eq("tema_id", temaData.id)
+      const { data: questoesData, error: questoesError } =
+        await supabase
+          .from("questoes")
+          .select("*")
+          .eq("tema_id", temaData.id)
 
       if (questoesError) {
-        console.error(
-          "Erro ao buscar questões:",
-          questoesError
-        )
+        console.error("Erro ao buscar questões:", questoesError)
 
         setLoading(false)
         return
       }
 
-      const questoesOrdenadas = (
-        questoesData || []
-      ).sort((a, b) => {
-        return (a.ordem || 0) - (b.ordem || 0)
-      })
+      const questoesOrdenadas = (questoesData || []).sort(
+        (a, b) => {
+          return (a.ordem || 0) - (b.ordem || 0)
+        }
+      )
 
       setTema({
         ...temaData,
@@ -228,8 +240,7 @@ export default function QuestaoDetailPage() {
 
     if (finished) return
 
-    const questaoAtual =
-      questoes[currentQuestion]
+    const questaoAtual = questoes[currentQuestion]
 
     if (!questaoAtual) return
 
@@ -265,25 +276,16 @@ export default function QuestaoDetailPage() {
         tema_titulo: tema.titulo,
         tema_slug: tema.slug,
 
-        tipo:
-          questaoAtual.tipo || "fechada",
+        tipo: questaoAtual.tipo || "fechada",
 
-        posicao:
-          currentQuestion + 1,
+        posicao: currentQuestion + 1,
 
-        total_questoes:
-          questoes.length,
+        total_questoes: questoes.length,
 
-        ordem:
-          questaoAtual.ordem ?? null,
+        ordem: questaoAtual.ordem ?? null,
       },
     })
-  }, [
-    currentQuestion,
-    tema,
-    questoes,
-    finished,
-  ])
+  }, [currentQuestion, tema, questoes, finished])
 
   /*
    * ============================================================
@@ -301,26 +303,15 @@ export default function QuestaoDetailPage() {
 
   function getQuestionDuration() {
     const segundos =
-      (Date.now() -
-        questionStartTime.current) /
-      1000
+      (Date.now() - questionStartTime.current) / 1000
 
-    return Math.max(
-      0,
-      Math.round(segundos)
-    )
+    return Math.max(0, Math.round(segundos))
   }
 
   function getQuizDuration() {
-    const segundos =
-      (Date.now() -
-        quizStartTime.current) /
-      1000
+    const segundos = (Date.now() - quizStartTime.current) / 1000
 
-    return Math.max(
-      0,
-      Math.round(segundos)
-    )
+    return Math.max(0, Math.round(segundos))
   }
 
   /*
@@ -332,8 +323,7 @@ export default function QuestaoDetailPage() {
   function irParaAnterior() {
     if (currentQuestion === 0) return
 
-    const question =
-      questoes[currentQuestion]
+    const question = questoes[currentQuestion]
 
     if (tema && question) {
       const pergunta =
@@ -342,8 +332,7 @@ export default function QuestaoDetailPage() {
         `Questão ${currentQuestion + 1}`
 
       trackEvent({
-        event_type:
-          "question_previous",
+        event_type: "question_previous",
 
         page_path: `/questoes/${tema.slug}`,
 
@@ -362,24 +351,19 @@ export default function QuestaoDetailPage() {
         metadata: {
           tema_id: tema.id,
           tema_titulo: tema.titulo,
-          posicao:
-            currentQuestion + 1,
-          total_questoes:
-            questoes.length,
+          posicao: currentQuestion + 1,
+          total_questoes: questoes.length,
         },
       })
     }
 
-    setCurrentQuestion(
-      (c) => c - 1
-    )
+    setCurrentQuestion((c) => c - 1)
 
     resetQuestionState()
   }
 
   function irParaProxima() {
-    const question =
-      questoes[currentQuestion]
+    const question = questoes[currentQuestion]
 
     /*
      * Se a questão ainda não foi respondida,
@@ -388,19 +372,14 @@ export default function QuestaoDetailPage() {
      * Nesse caso registramos especificamente
      * que ela foi pulada.
      */
-    if (
-      !showResult &&
-      tema &&
-      question
-    ) {
+    if (!showResult && tema && question) {
       const pergunta =
         question.pergunta ||
         question.enunciado ||
         `Questão ${currentQuestion + 1}`
 
       trackEvent({
-        event_type:
-          "question_skipped",
+        event_type: "question_skipped",
 
         page_path: `/questoes/${tema.slug}`,
 
@@ -416,38 +395,26 @@ export default function QuestaoDetailPage() {
 
         value: currentQuestion + 1,
 
-        duration_seconds:
-          getQuestionDuration(),
+        duration_seconds: getQuestionDuration(),
 
         metadata: {
           tema_id: tema.id,
 
-          tema_titulo:
-            tema.titulo,
+          tema_titulo: tema.titulo,
 
-          tema_slug:
-            tema.slug,
+          tema_slug: tema.slug,
 
-          tipo:
-            question.tipo ||
-            "fechada",
+          tipo: question.tipo || "fechada",
 
-          posicao:
-            currentQuestion + 1,
+          posicao: currentQuestion + 1,
 
-          total_questoes:
-            questoes.length,
+          total_questoes: questoes.length,
         },
       })
     }
 
-    if (
-      currentQuestion <
-      questoes.length - 1
-    ) {
-      setCurrentQuestion(
-        (c) => c + 1
-      )
+    if (currentQuestion < questoes.length - 1) {
+      setCurrentQuestion((c) => c + 1)
 
       resetQuestionState()
     } else {
@@ -468,41 +435,32 @@ export default function QuestaoDetailPage() {
       return
     }
 
-    const totalFechadas =
-      questoes.filter(
-        (q) =>
-          (q.tipo || "fechada") ===
-          "fechada"
-      ).length
+    const totalFechadas = questoes.filter(
+      (q) => (q.tipo || "fechada") === "fechada"
+    ).length
 
-    const totalAbertas =
-      questoes.filter(
-        (q) => q.tipo === "aberta"
-      ).length
+    const totalAbertas = questoes.filter(
+      (q) => q.tipo === "aberta"
+    ).length
 
+    /*
+     * O percentual considera apenas as questões
+     * fechadas que possuem gabarito.
+     */
     const percentual =
-      answeredClosed > 0
-        ? Math.round(
-            (score /
-              answeredClosed) *
-              100
-          )
+      gradedClosed > 0
+        ? Math.round((score / gradedClosed) * 100)
         : null
 
-    const totalRespondidas =
-      answeredClosed +
-      answeredOpen
+    const totalRespondidas = answeredClosed + answeredOpen
 
-    const totalPuladas =
-      Math.max(
-        0,
-        questoes.length -
-          totalRespondidas
-      )
+    const totalPuladas = Math.max(
+      0,
+      questoes.length - totalRespondidas
+    )
 
     trackEvent({
-      event_type:
-        "quiz_completed",
+      event_type: "quiz_completed",
 
       page_path: `/questoes/${tema.slug}`,
 
@@ -516,55 +474,38 @@ export default function QuestaoDetailPage() {
 
       content_type: "quiz",
 
-      success:
-        percentual !== null
-          ? percentual >= 70
-          : undefined,
+      success: percentual !== null ? percentual >= 70 : undefined,
 
-      value:
-        percentual ?? 0,
+      value: percentual ?? 0,
 
-      duration_seconds:
-        getQuizDuration(),
+      duration_seconds: getQuizDuration(),
 
       metadata: {
         tema_id: tema.id,
 
         tema_slug: tema.slug,
 
-        total_questoes:
-          questoes.length,
+        total_questoes: questoes.length,
 
-        total_fechadas:
-          totalFechadas,
+        total_fechadas: totalFechadas,
 
-        total_abertas:
-          totalAbertas,
+        total_abertas: totalAbertas,
 
-        respondidas_fechadas:
-          answeredClosed,
+        respondidas_fechadas: answeredClosed,
 
-        respondidas_abertas:
-          answeredOpen,
+        respondidas_com_gabarito: gradedClosed,
 
-        total_respondidas:
-          totalRespondidas,
+        respondidas_abertas: answeredOpen,
 
-        total_puladas:
-          totalPuladas,
+        total_respondidas: totalRespondidas,
 
-        acertos:
-          score,
+        total_puladas: totalPuladas,
 
-        erros:
-          Math.max(
-            0,
-            answeredClosed -
-              score
-          ),
+        acertos: score,
 
-        percentual:
-          percentual,
+        erros: Math.max(0, gradedClosed - score),
+
+        percentual: percentual,
       },
     })
 
@@ -646,17 +587,13 @@ export default function QuestaoDetailPage() {
     )
   }
 
-  if (
-    !tema ||
-    questoes.length === 0
-  ) {
+  if (!tema || questoes.length === 0) {
     return (
       <div className="min-h-screen bg-background">
         <Sidebar />
 
         <main className="lg:pl-64 pt-14 lg:pt-0">
           <div className="max-w-4xl mx-auto px-4 sm:px-6 py-8 lg:py-12">
-
             <Link
               href="/questoes"
               className="inline-flex items-center text-sm text-muted-foreground hover:text-sky-400 mb-8 group transition"
@@ -667,7 +604,6 @@ export default function QuestaoDetailPage() {
             </Link>
 
             <div className="rounded-2xl border border-border bg-card p-8 text-center">
-
               <div className="inline-flex items-center justify-center w-14 h-14 rounded-2xl bg-sky-500/10 mb-4">
                 <Target className="h-7 w-7 text-sky-400" />
               </div>
@@ -679,9 +615,7 @@ export default function QuestaoDetailPage() {
               <p className="mt-2 text-sm text-muted-foreground">
                 Verifique se o tema possui questões cadastradas.
               </p>
-
             </div>
-
           </div>
         </main>
       </div>
@@ -694,29 +628,20 @@ export default function QuestaoDetailPage() {
    * ============================================================
    */
 
-  const question =
-    questoes[currentQuestion]
+  const question = questoes[currentQuestion]
 
-  const totalQuestions =
-    questoes.length
+  const totalQuestions = questoes.length
 
-  const tipoQuestao =
-    question.tipo || "fechada"
+  const tipoQuestao = question.tipo || "fechada"
 
-  const pergunta =
-    question.pergunta ||
-    question.enunciado ||
-    ""
+  const pergunta = question.pergunta || question.enunciado || ""
 
-  const comentario =
-    question.comentario ||
-    question.explicacao ||
-    ""
+  const comentario = question.comentario || question.explicacao || ""
 
   const respostaComentada =
     question.resposta_aberta ||
     comentario ||
-    "Sem resposta comentada cadastrada."
+    "Resposta comentada não disponível."
 
   const alternativas = [
     question.alternativa_a,
@@ -724,27 +649,26 @@ export default function QuestaoDetailPage() {
     question.alternativa_c,
     question.alternativa_d,
     question.alternativa_e,
-  ].filter(
-    (alt): alt is string =>
-      Boolean(
-        alt &&
-          alt.trim()
-      )
+  ].filter((alt): alt is string =>
+    Boolean(alt && alt.trim())
   )
 
-  const correta =
-    question.correta ||
-    question.resposta_correta ||
-    "A"
+  /*
+   * Gabarito da questão atual.
+   *
+   * Se não houver gabarito cadastrado, corretaIndex fica -1
+   * e a questão é exibida sem marcar certo/errado.
+   */
+  const corretaIndex = getCorretaIndex(question)
 
-  const corretaIndex = [
-    "A",
-    "B",
-    "C",
-    "D",
-    "E",
-  ].indexOf(
-    String(correta).toUpperCase()
+  const temGabarito = corretaIndex >= 0
+
+  /*
+   * Indica se o quiz tem pelo menos uma questão com gabarito.
+   * Usado para esconder o contador de acertos em quizzes sem gabarito.
+   */
+  const temAlgumGabarito = questoes.some(
+    (q) => getCorretaIndex(q) >= 0
   )
 
   /*
@@ -753,9 +677,7 @@ export default function QuestaoDetailPage() {
    * ============================================================
    */
 
-  function handleSelect(
-    index: number
-  ) {
+  function handleSelect(index: number) {
     if (showResult) return
 
     setSelectedAnswer(index)
@@ -768,19 +690,11 @@ export default function QuestaoDetailPage() {
    */
 
   function handleConfirm() {
-    if (
-      tipoQuestao ===
-        "fechada" &&
-      selectedAnswer === null
-    ) {
+    if (tipoQuestao === "fechada" && selectedAnswer === null) {
       return
     }
 
-    if (
-      tipoQuestao ===
-        "aberta" &&
-      !openAnswer.trim()
-    ) {
+    if (tipoQuestao === "aberta" && !openAnswer.trim()) {
       return
     }
 
@@ -792,44 +706,31 @@ export default function QuestaoDetailPage() {
      * ------------------------------------------------------------
      */
 
-    if (
-      tipoQuestao ===
-      "fechada"
-    ) {
+    if (tipoQuestao === "fechada") {
       const acertou =
-        corretaIndex >= 0 &&
-        selectedAnswer ===
-          corretaIndex
+        temGabarito && selectedAnswer === corretaIndex
 
-      setAnsweredClosed(
-        (value) => value + 1
-      )
+      setAnsweredClosed((value) => value + 1)
+
+      if (temGabarito) {
+        setGradedClosed((value) => value + 1)
+      }
 
       if (acertou) {
-        setScore(
-          (s) => s + 1
-        )
+        setScore((s) => s + 1)
       }
 
       const letraSelecionada =
         selectedAnswer !== null
-          ? String.fromCharCode(
-              65 +
-                selectedAnswer
-            )
+          ? String.fromCharCode(65 + selectedAnswer)
           : null
 
-      const letraCorreta =
-        corretaIndex >= 0
-          ? String.fromCharCode(
-              65 +
-                corretaIndex
-            )
-          : null
+      const letraCorreta = temGabarito
+        ? String.fromCharCode(65 + corretaIndex)
+        : null
 
       trackEvent({
-        event_type:
-          "question_answered",
+        event_type: "question_answered",
 
         page_path: `/questoes/${tema.slug}`,
 
@@ -839,48 +740,36 @@ export default function QuestaoDetailPage() {
 
         title: pergunta,
 
-        content_id:
-          question.id,
+        content_id: question.id,
 
-        content_type:
-          "question",
+        content_type: "question",
 
-        success:
-          acertou,
+        success: temGabarito ? acertou : undefined,
 
-        value:
-          currentQuestion + 1,
+        value: currentQuestion + 1,
 
-        duration_seconds:
-          getQuestionDuration(),
+        duration_seconds: getQuestionDuration(),
 
         metadata: {
-          tema_id:
-            tema.id,
+          tema_id: tema.id,
 
-          tema_titulo:
-            tema.titulo,
+          tema_titulo: tema.titulo,
 
-          tema_slug:
-            tema.slug,
+          tema_slug: tema.slug,
 
-          tipo:
-            "fechada",
+          tipo: "fechada",
 
-          posicao:
-            currentQuestion + 1,
+          posicao: currentQuestion + 1,
 
-          total_questoes:
-            totalQuestions,
+          total_questoes: totalQuestions,
 
-          alternativa_selecionada:
-            letraSelecionada,
+          alternativa_selecionada: letraSelecionada,
 
-          alternativa_correta:
-            letraCorreta,
+          alternativa_correta: letraCorreta,
 
-          acertou:
-            acertou,
+          tem_gabarito: temGabarito,
+
+          acertou: temGabarito ? acertou : null,
         },
       })
     }
@@ -897,13 +786,10 @@ export default function QuestaoDetailPage() {
      */
 
     else {
-      setAnsweredOpen(
-        (value) => value + 1
-      )
+      setAnsweredOpen((value) => value + 1)
 
       trackEvent({
-        event_type:
-          "question_answered",
+        event_type: "question_answered",
 
         page_path: `/questoes/${tema.slug}`,
 
@@ -913,43 +799,30 @@ export default function QuestaoDetailPage() {
 
         title: pergunta,
 
-        content_id:
-          question.id,
+        content_id: question.id,
 
-        content_type:
-          "question",
+        content_type: "question",
 
-        value:
-          currentQuestion + 1,
+        value: currentQuestion + 1,
 
-        duration_seconds:
-          getQuestionDuration(),
+        duration_seconds: getQuestionDuration(),
 
         metadata: {
-          tema_id:
-            tema.id,
+          tema_id: tema.id,
 
-          tema_titulo:
-            tema.titulo,
+          tema_titulo: tema.titulo,
 
-          tema_slug:
-            tema.slug,
+          tema_slug: tema.slug,
 
-          tipo:
-            "aberta",
+          tipo: "aberta",
 
-          posicao:
-            currentQuestion + 1,
+          posicao: currentQuestion + 1,
 
-          total_questoes:
-            totalQuestions,
+          total_questoes: totalQuestions,
 
-          resposta_preenchida:
-            true,
+          resposta_preenchida: true,
 
-          tamanho_resposta:
-            openAnswer.trim()
-              .length,
+          tamanho_resposta: openAnswer.trim().length,
         },
       })
     }
@@ -962,13 +835,8 @@ export default function QuestaoDetailPage() {
    */
 
   function handleNext() {
-    if (
-      currentQuestion <
-      questoes.length - 1
-    ) {
-      setCurrentQuestion(
-        (c) => c + 1
-      )
+    if (currentQuestion < questoes.length - 1) {
+      setCurrentQuestion((c) => c + 1)
 
       resetQuestionState()
     } else {
@@ -984,8 +852,7 @@ export default function QuestaoDetailPage() {
 
   function handleRestart() {
     trackEvent({
-      event_type:
-        "quiz_restart",
+      event_type: "quiz_restart",
 
       page_path: `/questoes/${tema.slug}`,
 
@@ -1002,20 +869,15 @@ export default function QuestaoDetailPage() {
       metadata: {
         tema_id: tema.id,
 
-        tema_slug:
-          tema.slug,
+        tema_slug: tema.slug,
 
-        total_questoes:
-          questoes.length,
+        total_questoes: questoes.length,
 
-        score_anterior:
-          score,
+        score_anterior: score,
 
-        respondidas_fechadas:
-          answeredClosed,
+        respondidas_fechadas: answeredClosed,
 
-        respondidas_abertas:
-          answeredOpen,
+        respondidas_abertas: answeredOpen,
       },
     })
 
@@ -1031,15 +893,15 @@ export default function QuestaoDetailPage() {
 
     setAnsweredClosed(0)
 
+    setGradedClosed(0)
+
     setAnsweredOpen(0)
 
     setFinished(false)
 
-    quizStartTime.current =
-      Date.now()
+    quizStartTime.current = Date.now()
 
-    questionStartTime.current =
-      Date.now()
+    questionStartTime.current = Date.now()
   }
 
   /*
@@ -1049,27 +911,17 @@ export default function QuestaoDetailPage() {
    */
 
   if (finished) {
-    const totalFechadas =
-      questoes.filter(
-        (q) =>
-          (q.tipo ||
-            "fechada") ===
-          "fechada"
-      ).length
+    const totalFechadas = questoes.filter(
+      (q) => (q.tipo || "fechada") === "fechada"
+    ).length
 
-    const totalAbertas =
-      questoes.filter(
-        (q) =>
-          q.tipo === "aberta"
-      ).length
+    const totalAbertas = questoes.filter(
+      (q) => q.tipo === "aberta"
+    ).length
 
     const percentage =
-      answeredClosed > 0
-        ? Math.round(
-            (score /
-              answeredClosed) *
-              100
-          )
+      gradedClosed > 0
+        ? Math.round((score / gradedClosed) * 100)
         : null
 
     return (
@@ -1078,32 +930,26 @@ export default function QuestaoDetailPage() {
 
         <main className="lg:pl-64 pt-14 lg:pt-0">
           <div className="max-w-2xl mx-auto px-4 sm:px-6 py-8 lg:py-12">
-
             <div className="bg-card rounded-3xl border border-border p-8 text-center shadow-xl shadow-sky-500/5">
-
               <div
                 className={cn(
                   "inline-flex items-center justify-center w-24 h-24 rounded-full mb-6",
 
-                  percentage ===
-                    null
+                  percentage === null
                     ? "bg-sky-500/10"
-                    : percentage >=
-                        70
+                    : percentage >= 70
                       ? "bg-emerald-500/10"
                       : "bg-amber-500/10"
                 )}
               >
-                {percentage ===
-                null ? (
+                {percentage === null ? (
                   <CheckCircle className="h-10 w-10 text-sky-400" />
                 ) : (
                   <span
                     className={cn(
                       "text-3xl font-bold",
 
-                      percentage >=
-                        70
+                      percentage >= 70
                         ? "text-emerald-500"
                         : "text-amber-500"
                     )}
@@ -1122,26 +968,25 @@ export default function QuestaoDetailPage() {
               </p>
 
               <div className="mb-6 grid gap-3 text-left sm:grid-cols-2">
-
                 <div className="rounded-2xl border border-border bg-background/60 p-4">
-
                   <p className="text-sm text-muted-foreground">
                     Questões fechadas
                   </p>
 
                   <p className="mt-1 text-lg font-semibold text-foreground">
-                    {score} acertos
+                    {temAlgumGabarito
+                      ? `${score} acertos`
+                      : `${answeredClosed} respondidas`}
                   </p>
 
                   <p className="text-xs text-muted-foreground">
-                    {answeredClosed} respondidas de{" "}
-                    {totalFechadas}
+                    {temAlgumGabarito
+                      ? `${gradedClosed} corrigidas de ${totalFechadas}`
+                      : `de ${totalFechadas} questões fechadas`}
                   </p>
-
                 </div>
 
                 <div className="rounded-2xl border border-border bg-background/60 p-4">
-
                   <p className="text-sm text-muted-foreground">
                     Questões abertas
                   </p>
@@ -1153,19 +998,11 @@ export default function QuestaoDetailPage() {
                   <p className="text-xs text-muted-foreground">
                     de {totalAbertas} questões abertas
                   </p>
-
                 </div>
-
               </div>
 
               <div className="flex flex-col sm:flex-row gap-3 justify-center">
-
-                <Button
-                  variant="outline"
-                  onClick={
-                    handleRestart
-                  }
-                >
+                <Button variant="outline" onClick={handleRestart}>
                   <RotateCcw className="h-4 w-4 mr-2" />
 
                   Refazer
@@ -1176,11 +1013,8 @@ export default function QuestaoDetailPage() {
                     Voltar para Questões
                   </Button>
                 </Link>
-
               </div>
-
             </div>
-
           </div>
         </main>
       </div>
@@ -1198,11 +1032,8 @@ export default function QuestaoDetailPage() {
       <Sidebar />
 
       <main className="lg:pl-64 pt-14 lg:pt-0">
-
         <div className="max-w-3xl mx-auto px-4 sm:px-6 py-6 sm:py-8 lg:py-12">
-
           <div className="mb-6 sm:mb-8 flex items-center justify-between gap-4">
-
             <Link
               href="/questoes"
               className="inline-flex items-center text-sm text-muted-foreground hover:text-sky-400 group transition"
@@ -1222,117 +1053,83 @@ export default function QuestaoDetailPage() {
                 Editar
               </Link>
             </AdminOnly>
-
           </div>
 
           {/* CABEÇALHO DO QUIZ */}
 
           <section className="mb-6 sm:mb-8 rounded-3xl border border-sky-500/10 bg-gradient-to-br from-sky-500/10 via-card to-cyan-500/5 p-5 sm:p-6 shadow-lg shadow-sky-500/5">
-
             <div className="flex items-start gap-3">
-
               <div className="inline-flex items-center justify-center w-11 h-11 rounded-2xl bg-sky-500/10 text-sky-400">
                 <Target className="h-5 w-5" />
               </div>
 
               <div>
-
                 <h1 className="text-xl sm:text-2xl font-bold text-foreground">
                   {tema.titulo}
                 </h1>
 
                 <p className="text-sm text-muted-foreground mt-1">
-                  {tema.descricao ||
-                    "Questões comentadas"}
+                  {tema.descricao || "Questões comentadas"}
                 </p>
-
               </div>
-
             </div>
 
             <div className="mt-5">
-
               <div className="flex items-center justify-between text-sm mb-2">
-
                 <span className="text-muted-foreground">
-                  Questão{" "}
-                  {currentQuestion + 1} de{" "}
-                  {totalQuestions}
+                  Questão {currentQuestion + 1} de {totalQuestions}
                 </span>
 
-                <span className="font-medium text-sky-400">
-                  {score} acertos
-                </span>
-
+                {temAlgumGabarito && (
+                  <span className="font-medium text-sky-400">
+                    {score} acertos
+                  </span>
+                )}
               </div>
 
               <div className="h-2 bg-secondary rounded-full overflow-hidden">
-
                 <div
                   className="h-full bg-gradient-to-r from-sky-500 to-cyan-500 transition-all duration-300"
                   style={{
                     width: `${
-                      ((currentQuestion +
-                        1) /
-                        totalQuestions) *
-                      100
+                      ((currentQuestion + 1) / totalQuestions) * 100
                     }%`,
                   }}
                 />
-
               </div>
-
             </div>
-
           </section>
 
           {/* QUESTÃO */}
 
           <section className="bg-card rounded-3xl border border-border overflow-hidden shadow-xl shadow-sky-500/5">
-
             <div className="p-5 sm:p-8">
-
               <div className="mb-4 inline-flex rounded-full bg-sky-500/10 px-3 py-1 text-xs font-medium text-sky-500 dark:text-sky-400">
-                {tipoQuestao ===
-                "aberta"
+                {tipoQuestao === "aberta"
                   ? "Questão aberta"
                   : "Questão fechada"}
               </div>
 
               <div className="mb-6 text-lg font-semibold leading-relaxed text-foreground">
-
                 <ReactMarkdown
                   components={{
-                    p: ({
-                      children,
-                    }) => (
+                    p: ({ children }) => (
                       <p className="mb-4 leading-relaxed text-foreground">
                         {children}
                       </p>
                     ),
 
-                    strong: ({
-                      children,
-                    }) => (
+                    strong: ({ children }) => (
                       <strong className="font-bold text-sky-400">
                         {children}
                       </strong>
                     ),
 
-                    img: ({
-                      src,
-                      alt,
-                    }) => (
+                    img: ({ src, alt }) => (
                       <div className="my-6 flex justify-center">
                         <img
-                          src={
-                            src ||
-                            ""
-                          }
-                          alt={
-                            alt ||
-                            ""
-                          }
+                          src={typeof src === "string" ? src : ""}
+                          alt={alt || ""}
                           className="max-h-[420px] max-w-full rounded-2xl border border-border bg-white object-contain shadow-lg sm:max-w-[620px]"
                         />
                       </div>
@@ -1341,150 +1138,122 @@ export default function QuestaoDetailPage() {
                 >
                   {pergunta}
                 </ReactMarkdown>
-
               </div>
 
               {question.imagem_url && (
                 <div className="mb-6 flex justify-center">
-
                   <img
-                    src={
-                      question.imagem_url
-                    }
+                    src={question.imagem_url}
                     alt="Imagem da questão"
                     className="max-h-[420px] max-w-full rounded-2xl border border-border bg-white object-contain shadow-lg sm:max-w-[620px]"
                   />
-
                 </div>
               )}
 
               {/* QUESTÃO FECHADA */}
 
-              {tipoQuestao ===
-              "fechada" ? (
-
+              {tipoQuestao === "fechada" ? (
                 <div className="space-y-3">
+                  {alternativas.map((alt, index) => {
+                    const isSelected = selectedAnswer === index
 
-                  {alternativas.map(
-                    (
-                      alt,
-                      index
-                    ) => {
-                      const isSelected =
-                        selectedAnswer ===
-                        index
+                    const isCorrect = index === corretaIndex
 
-                      const isCorrect =
-                        index ===
-                        corretaIndex
+                    /*
+                     * Só mostra certo/errado quando existe gabarito.
+                     */
+                    const showCorrect =
+                      showResult && temGabarito && isCorrect
 
-                      const showCorrect =
-                        showResult &&
-                        isCorrect
+                    const showWrong =
+                      showResult &&
+                      temGabarito &&
+                      isSelected &&
+                      !isCorrect
 
-                      const showWrong =
-                        showResult &&
-                        isSelected &&
-                        !isCorrect
+                    /*
+                     * Sem gabarito: destaca a escolha do aluno
+                     * com cor neutra, sem dizer se está certa.
+                     */
+                    const showNeutralSelected =
+                      showResult && !temGabarito && isSelected
 
-                      return (
-                        <button
-                          key={
-                            index
-                          }
-                          onClick={() =>
-                            handleSelect(
-                              index
-                            )
-                          }
-                          disabled={
-                            showResult
-                          }
+                    return (
+                      <button
+                        key={index}
+                        onClick={() => handleSelect(index)}
+                        disabled={showResult}
+                        className={cn(
+                          "w-full flex items-center gap-3 p-4 rounded-2xl border text-left transition-all duration-200",
+
+                          !showResult &&
+                            isSelected &&
+                            "border-sky-500 bg-sky-500/10",
+
+                          !showResult &&
+                            !isSelected &&
+                            "border-border hover:border-sky-500/50 hover:bg-sky-500/5",
+
+                          showCorrect &&
+                            "border-emerald-500 bg-emerald-500/10",
+
+                          showWrong &&
+                            "border-rose-500 bg-rose-500/10",
+
+                          showNeutralSelected &&
+                            "border-sky-500 bg-sky-500/10",
+
+                          showResult &&
+                            !showCorrect &&
+                            !showWrong &&
+                            !showNeutralSelected &&
+                            "opacity-50"
+                        )}
+                      >
+                        <span
                           className={cn(
-                            "w-full flex items-center gap-3 p-4 rounded-2xl border text-left transition-all duration-200",
+                            "w-8 h-8 rounded-xl flex items-center justify-center text-sm font-medium shrink-0",
 
                             !showResult &&
                               isSelected &&
-                              "border-sky-500 bg-sky-500/10",
+                              "bg-sky-500 text-white",
 
                             !showResult &&
                               !isSelected &&
-                              "border-border hover:border-sky-500/50 hover:bg-sky-500/5",
+                              "bg-secondary text-secondary-foreground",
 
-                            showCorrect &&
-                              "border-emerald-500 bg-emerald-500/10",
+                            showCorrect && "bg-emerald-500 text-white",
 
-                            showWrong &&
-                              "border-rose-500 bg-rose-500/10",
+                            showWrong && "bg-rose-500 text-white",
 
-                            showResult &&
-                              !showCorrect &&
-                              !showWrong &&
-                              "opacity-50"
+                            showNeutralSelected &&
+                              "bg-sky-500 text-white"
                           )}
                         >
+                          {showCorrect ? (
+                            <CheckCircle2 className="h-5 w-5" />
+                          ) : showWrong ? (
+                            <XCircle className="h-5 w-5" />
+                          ) : (
+                            String.fromCharCode(65 + index)
+                          )}
+                        </span>
 
-                          <span
-                            className={cn(
-                              "w-8 h-8 rounded-xl flex items-center justify-center text-sm font-medium shrink-0",
-
-                              !showResult &&
-                                isSelected &&
-                                "bg-sky-500 text-white",
-
-                              !showResult &&
-                                !isSelected &&
-                                "bg-secondary text-secondary-foreground",
-
-                              showCorrect &&
-                                "bg-emerald-500 text-white",
-
-                              showWrong &&
-                                "bg-rose-500 text-white"
-                            )}
-                          >
-                            {showCorrect ? (
-                              <CheckCircle2 className="h-5 w-5" />
-                            ) : showWrong ? (
-                              <XCircle className="h-5 w-5" />
-                            ) : (
-                              String.fromCharCode(
-                                65 +
-                                  index
-                              )
-                            )}
-                          </span>
-
-                          <span className="flex-1 text-sm sm:text-base text-foreground">
-                            {alt}
-                          </span>
-
-                        </button>
-                      )
-                    }
-                  )}
-
+                        <span className="flex-1 text-sm sm:text-base text-foreground">
+                          {alt}
+                        </span>
+                      </button>
+                    )
+                  })}
                 </div>
-
               ) : (
-
                 /* QUESTÃO ABERTA */
 
                 <div className="space-y-4">
-
                   <textarea
-                    value={
-                      openAnswer
-                    }
-                    onChange={(e) =>
-                      setOpenAnswer(
-                        e.target
-                          .value
-                      )
-                    }
-                    disabled={
-                      showResult
-                    }
+                    value={openAnswer}
+                    onChange={(e) => setOpenAnswer(e.target.value)}
+                    disabled={showResult}
                     placeholder="Digite sua resposta aqui..."
                     className="min-h-36 w-full resize-y rounded-2xl border border-border bg-background px-4 py-3 text-sm text-foreground outline-none transition focus:border-sky-500 disabled:opacity-70"
                   />
@@ -1494,104 +1263,73 @@ export default function QuestaoDetailPage() {
                       Depois de responder, clique em confirmar para ver a resposta comentada.
                     </p>
                   )}
-
                 </div>
-
               )}
 
               {/* RESULTADO DA QUESTÃO */}
 
               {showResult && (
-
                 <div className="mt-6 space-y-4">
-
-                  {tipoQuestao ===
-                  "aberta" ? (
-
+                  {tipoQuestao === "aberta" ? (
                     <>
                       <div className="rounded-2xl border border-border bg-muted/40 p-4">
-
                         <p className="mb-1 text-sm font-medium text-foreground">
                           Sua resposta:
                         </p>
 
                         <p className="whitespace-pre-line text-sm leading-relaxed text-muted-foreground">
-                          {
-                            openAnswer
-                          }
+                          {openAnswer}
                         </p>
-
                       </div>
 
                       <div className="rounded-2xl border border-sky-500/20 bg-sky-500/10 p-4">
-
                         <p className="mb-2 flex items-center gap-2 text-sm font-medium text-sky-500 dark:text-sky-400">
-
                           <Eye className="h-4 w-4" />
 
                           Resposta comentada:
-
                         </p>
 
                         <p className="whitespace-pre-line text-sm leading-relaxed text-foreground">
-                          {
-                            respostaComentada
-                          }
+                          {respostaComentada}
                         </p>
-
                       </div>
                     </>
-
                   ) : (
-
                     <div className="rounded-2xl border border-border bg-muted/50 p-4">
-
                       <p className="text-sm font-medium text-foreground mb-1">
                         Comentário:
                       </p>
 
                       <p className="whitespace-pre-line text-sm text-muted-foreground leading-relaxed">
                         {comentario ||
-                          "Sem comentário cadastrado."}
+                          (temGabarito
+                            ? "Sem comentário cadastrado."
+                            : "Gabarito não disponível.")}
                       </p>
-
                     </div>
-
                   )}
-
                 </div>
-
               )}
-
             </div>
 
             {/* CONTROLES */}
 
             <div className="px-5 sm:px-8 py-4 border-t border-border bg-muted/30 flex flex-col sm:flex-row sm:justify-between gap-3">
-
               <Button
                 type="button"
                 variant="outline"
-                disabled={
-                  currentQuestion ===
-                  0
-                }
-                onClick={
-                  irParaAnterior
-                }
+                disabled={currentQuestion === 0}
+                onClick={irParaAnterior}
               >
                 Voltar
               </Button>
 
               <div className="flex flex-col sm:flex-row justify-end gap-3">
-
                 {!showResult && (
                   <Button
                     type="button"
                     variant="outline"
-                    onClick={
-                      irParaProxima
-                    }
+                    onClick={irParaProxima}
                   >
                     Pular
 
@@ -1600,34 +1338,23 @@ export default function QuestaoDetailPage() {
                 )}
 
                 {!showResult ? (
-
                   <Button
-                    onClick={
-                      handleConfirm
-                    }
+                    onClick={handleConfirm}
                     disabled={
-                      tipoQuestao ===
-                      "fechada"
-                        ? selectedAnswer ===
-                          null
+                      tipoQuestao === "fechada"
+                        ? selectedAnswer === null
                         : !openAnswer.trim()
                     }
                     className="bg-sky-500 hover:bg-sky-600"
                   >
                     Confirmar
                   </Button>
-
                 ) : (
-
                   <Button
-                    onClick={
-                      handleNext
-                    }
+                    onClick={handleNext}
                     className="bg-sky-500 hover:bg-sky-600"
                   >
-                    {currentQuestion <
-                    totalQuestions -
-                      1 ? (
+                    {currentQuestion < totalQuestions - 1 ? (
                       <>
                         Próxima
 
@@ -1637,17 +1364,11 @@ export default function QuestaoDetailPage() {
                       "Ver resultado"
                     )}
                   </Button>
-
                 )}
-
               </div>
-
             </div>
-
           </section>
-
         </div>
-
       </main>
     </div>
   )
